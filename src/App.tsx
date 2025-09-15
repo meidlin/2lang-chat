@@ -3,7 +3,6 @@ import './App.css';
 import { translationService } from './services/translationService';
 import { getOrCreateClientId } from './services/realtime';
 import { supabaseChatService } from './services/supabaseChat';
-import EnvDebug from './EnvDebug';
 import ErrorBoundary from './ErrorBoundary';
 
 interface Message {
@@ -409,10 +408,6 @@ function AppContent() {
 
   return (
     <div className="app">
-      <div style={{background: 'red', color: 'white', padding: '10px', textAlign: 'center'}}>
-        🚨 DEBUG: App is loading! If you see this, the app is working. (Version 2)
-      </div>
-      <EnvDebug />
       <div className="chat-header">
         <button className="back-btn" onClick={goBackToLanguageSelection} aria-label="Back to language selection">← Back</button>
         <div className="language-display">
