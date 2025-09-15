@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 import { translationService } from './services/translationService';
-import { supabase, getChannelName, ChatEvent, generateClientId } from './services/realtime';
+import { supabase, getChannelName, ChatEvent, getOrCreateClientId } from './services/realtime';
 
 interface Message {
   id: string;
@@ -48,7 +48,7 @@ function App() {
   }, [messages]);
   useEffect(() => {
     if (!supabase || !roomId) return;
-    const clientId = generateClientId();
+    const clientId = getOrCreateClientId();
     const channel = supabase.channel(getChannelName(roomId), { config: { broadcast: { ack: true }, presence: { key: clientId } } });
 
     channel.on('broadcast', { event: 'chat' }, ({ payload }: { payload: ChatEvent }) => {
@@ -71,10 +71,12 @@ function App() {
     
     channel.on('presence', { event: 'sync' }, () => {
       const state = channel.presenceState();
-      // Presence state shape: { [clientId]: [ { name, ... }, ... ] }
+      // Presence state shape: { [clientId]: [ { name, ts, ... }, ... ] }
       const entries = Object.entries(state) as Array<[string, any[]]>;
       // Order by first seen (existing order of keys is acceptable for simple rooms)
-      const ordered = entries.map(([key, metas]) => ({ key, meta: metas?.[0] || {} }));
+      const ordered = entries
+        .map(([key, metas]) => ({ key, meta: metas?.[0] || {} }))
+        .sort((a, b) => (a.meta.ts || 0) - (b.meta.ts || 0));
       const myIndex = ordered.findIndex(e => e.key === clientId);
       if (myIndex === 0) setRole('user1');
       else if (myIndex === 1) setRole('user2');
@@ -88,7 +90,7 @@ function App() {
 
     channel.subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
-        await channel.track({ clientId, name: displayName || 'Anonymous' });
+        await channel.track({ clientId, name: displayName || 'Anonymous', ts: Date.now() });
       }
     });
     return () => { channel.unsubscribe(); };

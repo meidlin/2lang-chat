@@ -17,4 +17,16 @@ export function generateClientId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
+export function getOrCreateClientId(): string {
+  try {
+    const existing = localStorage.getItem('client_id');
+    if (existing) return existing;
+    const created = generateClientId();
+    localStorage.setItem('client_id', created);
+    return created;
+  } catch {
+    return generateClientId();
+  }
+}
+
 
