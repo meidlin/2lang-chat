@@ -72,6 +72,10 @@ function AppContent() {
       if (existingUser) {
         console.log('✅ Using existing role:', existingUser.role);
         setRole(existingUser.role);
+        // Set sender based on role
+        if (existingUser.role === 'user1' || existingUser.role === 'user2') {
+          setCurrentSender(existingUser.role);
+        }
       } else {
         // New user - assign role based on existing users
         const user1Count = presence.filter(p => p.role === 'user1').length;
@@ -90,6 +94,11 @@ function AppContent() {
         
         console.log('🎯 Assigned new role:', newRole);
         setRole(newRole);
+        
+        // Set sender based on role
+        if (newRole === 'user1' || newRole === 'user2') {
+          setCurrentSender(newRole);
+        }
         
         // Update presence immediately with the new role
         await supabaseChatService.updatePresence(clientId, displayName || 'Anonymous', newRole, myLanguage);
@@ -383,7 +392,7 @@ function AppContent() {
                 if (n) {
                   console.log('🚀 Starting chat with name:', n, 'and language:', myLanguage);
                   setDisplayName(n);
-                  setCurrentSender('user1');
+                  // Don't set sender here - let the role assignment logic handle it
                 }
               }}
               style={{ marginTop: '20px' }}
