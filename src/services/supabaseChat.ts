@@ -117,6 +117,32 @@ class SupabaseChatService {
     }
   }
 
+  async deleteRoom(roomId: string): Promise<void> {
+    if (!supabase) {
+      throw new Error('Supabase not available - cannot delete room');
+    }
+
+    try {
+      console.log('🗑️ Deleting room:', roomId);
+      
+      // Delete the room (this will cascade delete messages and presence due to foreign key constraints)
+      const { error } = await supabase
+        .from('chat_rooms')
+        .delete()
+        .eq('id', roomId);
+
+      if (error) {
+        console.error('❌ Error deleting room:', error);
+        throw error;
+      }
+      
+      console.log('✅ Room deleted successfully');
+    } catch (error) {
+      console.error('💥 Error deleting room:', error);
+      throw error;
+    }
+  }
+
   async joinRoom(roomId: string, userId: string, name: string, role: 'user1' | 'user2' | 'spectator', language?: string): Promise<void> {
     if (!supabase) {
       throw new Error('Supabase not available - cannot join room');

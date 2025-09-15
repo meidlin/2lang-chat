@@ -453,6 +453,33 @@ function AppContent() {
     }
   };
 
+  const deleteRoom = async () => {
+    if (!currentRoomId) {
+      alert('No room to delete');
+      return;
+    }
+
+    const confirmDelete = window.confirm(
+      'Are you sure you want to delete this room? This will permanently remove all messages and kick out all users. This action cannot be undone.'
+    );
+
+    if (!confirmDelete) {
+      return;
+    }
+
+    try {
+      console.log('🗑️ Deleting room:', currentRoomId);
+      await supabaseChatService.deleteRoom(currentRoomId);
+      console.log('✅ Room deleted successfully');
+      
+      // Go back to room selection
+      goBackToRoomSelection();
+    } catch (error) {
+      console.error('❌ Error deleting room:', error);
+      alert('Failed to delete room. Please try again.');
+    }
+  };
+
   // Invite link removed
 
   const canSend = role === 'user1' || role === 'user2';
@@ -769,7 +796,29 @@ function AppContent() {
   return (
     <div className="app">
       <div className="chat-header">
-        <button className="back-btn" onClick={goBackToRoomSelection} aria-label="Back to room selection">← Back</button>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button className="back-btn" onClick={goBackToRoomSelection} aria-label="Back to room selection">← Back</button>
+          <button 
+            onClick={deleteRoom}
+            aria-label="Delete room"
+            style={{
+              background: '#dc3545',
+              color: 'white',
+              border: 'none',
+              padding: '8px 12px',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+              transition: 'background 0.3s ease'
+            }}
+            onMouseOver={(e) => (e.target as HTMLButtonElement).style.background = '#c82333'}
+            onMouseOut={(e) => (e.target as HTMLButtonElement).style.background = '#dc3545'}
+          >
+            🗑️ Delete Room
+          </button>
+        </div>
         <div className="language-display">
           <span className="user1-lang">
             {LANGUAGES.find(l => l.code === user1Language)?.flag} {user1OnlineName || 'User 1'}
