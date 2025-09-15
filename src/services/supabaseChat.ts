@@ -174,6 +174,8 @@ class SupabaseChatService {
         translated_text: message.translatedText,
         sender: message.sender,
         sender_name: message.senderName,
+        sender_id: message.senderId,
+        room_id: message.roomId,
         show_original: message.showOriginal || false,
         is_translating: message.isTranslating || false,
       };
