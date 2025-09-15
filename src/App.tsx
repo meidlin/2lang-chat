@@ -217,6 +217,25 @@ function AppContent() {
     }
   };
 
+  const getLocalizedTypingMessage = (user: 'user1' | 'user2', language: string): string => {
+    const typingMessages: { [key: string]: { [key: string]: string } } = {
+      'en': { 'user1': 'User 1 is typing...', 'user2': 'User 2 is typing...' },
+      'es': { 'user1': 'Usuario 1 está escribiendo...', 'user2': 'Usuario 2 está escribiendo...' },
+      'fr': { 'user1': 'Utilisateur 1 tape...', 'user2': 'Utilisateur 2 tape...' },
+      'de': { 'user1': 'Benutzer 1 tippt...', 'user2': 'Benutzer 2 tippt...' },
+      'it': { 'user1': 'Utente 1 sta scrivendo...', 'user2': 'Utente 2 sta scrivendo...' },
+      'pt': { 'user1': 'Usuário 1 está digitando...', 'user2': 'Usuário 2 está digitando...' },
+      'ru': { 'user1': 'Пользователь 1 печатает...', 'user2': 'Пользователь 2 печатает...' },
+      'ja': { 'user1': 'ユーザー1が入力中...', 'user2': 'ユーザー2が入力中...' },
+      'ko': { 'user1': '사용자 1이 입력 중...', 'user2': '사용자 2가 입력 중...' },
+      'zh': { 'user1': '用户1正在输入...', 'user2': '用户2正在输入...' },
+      'ar': { 'user1': 'المستخدم 1 يكتب...', 'user2': 'المستخدم 2 يكتب...' },
+      'hi': { 'user1': 'उपयोगकर्ता 1 टाइप कर रहे हैं...', 'user2': 'उपयोगकर्ता 2 टाइप कर रहे हैं...' }
+    };
+
+    return typingMessages[language]?.[user] || typingMessages['en'][user];
+  };
+
   const sendMessage = async () => {
     console.log('🚀 sendMessage called');
     console.log('📝 newMessage:', newMessage);
@@ -580,7 +599,7 @@ function AppContent() {
               <span></span>
               <span></span>
             </div>
-            <span>{typingUser === 'user1' ? 'User 1' : 'User 2'} is typing…</span>
+            <span>{getLocalizedTypingMessage(typingUser, myLanguage)}</span>
           </div>
         )}
         <div ref={messagesEndRef} />
