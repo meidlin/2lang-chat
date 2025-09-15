@@ -423,6 +423,21 @@ function AppContent() {
     setPresenceDebug('');
   };
 
+  const goBackToRoomSelection = () => {
+    // Leave the current room and go back to room selection
+    if (currentRoomId && currentUserId) {
+      supabaseChatService.removePresence(getOrCreateClientId());
+    }
+    setCurrentRoomId(null);
+    setCurrentUserId(null);
+    setRole('');
+    setUser1OnlineName(null);
+    setUser2OnlineName(null);
+    setTotalUsers(0);
+    setPresenceDebug('');
+    setShowRoomSelection(true);
+  };
+
   const refreshApp = async () => {
     try {
       if ('serviceWorker' in navigator) {
@@ -517,7 +532,17 @@ function AppContent() {
     return (
       <div className="language-selection">
         <div className="language-container">
-          <h1>🏠 Choose a Chat Room</h1>
+          <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
+            <button 
+              className="back-btn" 
+              onClick={goBackToLanguageSelection} 
+              aria-label="Back to language selection"
+              style={{ marginRight: '15px' }}
+            >
+              ← Back
+            </button>
+            <h1 style={{ margin: 0 }}>🏠 Choose a Chat Room</h1>
+          </div>
           <p>Welcome <strong>{displayName}</strong>! Select a room to join or create a new one.</p>
           
           {/* Create New Room */}
@@ -692,7 +717,7 @@ function AppContent() {
   return (
     <div className="app">
       <div className="chat-header">
-        <button className="back-btn" onClick={goBackToLanguageSelection} aria-label="Back to language selection">← Back</button>
+        <button className="back-btn" onClick={goBackToRoomSelection} aria-label="Back to room selection">← Back</button>
         <div className="language-display">
           <span className="user1-lang">
             {LANGUAGES.find(l => l.code === user1Language)?.flag} {user1OnlineName || 'User 1'}
