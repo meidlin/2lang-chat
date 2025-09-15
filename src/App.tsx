@@ -35,6 +35,8 @@ function App() {
   const [roomId] = useState<string>('global');
   
   const [displayName, setDisplayName] = useState<string>(() => localStorage.getItem('display_name') || '');
+  const [user1OnlineName, setUser1OnlineName] = useState<string | null>(null);
+  const [user2OnlineName, setUser2OnlineName] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -69,12 +71,19 @@ function App() {
     
     channel.on('presence', { event: 'sync' }, () => {
       const state = channel.presenceState();
-      // Keys are presence keys (our clientIds)
-      const orderedKeys = Object.keys(state);
-      const myIndex = orderedKeys.indexOf(clientId);
+      // Presence state shape: { [clientId]: [ { name, ... }, ... ] }
+      const entries = Object.entries(state) as Array<[string, any[]]>;
+      // Order by first seen (existing order of keys is acceptable for simple rooms)
+      const ordered = entries.map(([key, metas]) => ({ key, meta: metas?.[0] || {} }));
+      const myIndex = ordered.findIndex(e => e.key === clientId);
       if (myIndex === 0) setRole('user1');
       else if (myIndex === 1) setRole('user2');
       else setRole('spectator');
+
+      const first = ordered[0]?.meta || {};
+      const second = ordered[1]?.meta || {};
+      setUser1OnlineName(first.name ? String(first.name) : null);
+      setUser2OnlineName(second.name ? String(second.name) : null);
     });
 
     channel.subscribe(async (status) => {
@@ -228,7 +237,8 @@ function App() {
           
           <div className="language-grid">
             <div className="language-section">
-              <h3>👤 User 1 Language</h3>
+              <h3>👤 User 1 Language {user1OnlineName ? (<span className="presence-badge">{user1OnlineName}</span>) : (<span className="presence-badge waiting">waiting…</span>)}
+              </h3>
               <div className="language-options">
                 {LANGUAGES.map(lang => (
                   <button
@@ -244,7 +254,8 @@ function App() {
             </div>
 
             <div className="language-section">
-              <h3>👤 User 2 Language</h3>
+              <h3>👤 User 2 Language {user2OnlineName ? (<span className="presence-badge">{user2OnlineName}</span>) : (<span className="presence-badge waiting">waiting…</span>)}
+              </h3>
               <div className="language-options">
                 {LANGUAGES.map(lang => (
                   <button

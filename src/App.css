@@ -54,6 +54,23 @@
   font-size: 1.2rem;
 }
 
+.presence-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  background: #eef2ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+}
+
+.presence-badge.waiting {
+  background: #fff7ed;
+  color: #9a3412;
+  border: 1px solid #fed7aa;
+}
+
 .language-options {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
