@@ -37,11 +37,21 @@ function AppContent() {
   const [user1Language, setUser1Language] = useState<string>('');
   const [user2Language, setUser2Language] = useState<string>('');
   const [myLanguage, setMyLanguage] = useState<string>('');
+  
+  // Debug: Track myLanguage changes
+  useEffect(() => {
+    console.log('🔄 myLanguage changed:', myLanguage);
+  }, [myLanguage]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [currentSender, setCurrentSender] = useState<'user1' | 'user2'>('user1');
   const [typingIndicator, setTypingIndicator] = useState<TypingIndicator | null>(null);
   const [role, setRole] = useState<'user1' | 'user2' | 'spectator' | ''>('');
+  
+  // Debug: Track role changes
+  useEffect(() => {
+    console.log('🔄 role changed:', role);
+  }, [role]);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   
   const [displayName, setDisplayName] = useState<string>('');
