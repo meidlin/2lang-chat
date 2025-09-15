@@ -27,6 +27,7 @@ const LANGUAGES: Language[] = [
 ];
 
 function App() {
+  console.log('🚀 App component is starting to render...');
   const [user1Language, setUser1Language] = useState<string>('');
   const [user2Language, setUser2Language] = useState<string>('');
   const [myLanguage, setMyLanguage] = useState<string>('');
@@ -412,6 +413,9 @@ function App() {
 
   return (
     <div className="app">
+      <div style={{background: 'red', color: 'white', padding: '10px', textAlign: 'center'}}>
+        🚨 DEBUG: App is loading! If you see this, the app is working.
+      </div>
       <EnvDebug />
       <div className="chat-header">
         <button className="back-btn" onClick={goBackToLanguageSelection} aria-label="Back to language selection">← Back</button>
