@@ -251,7 +251,10 @@ function AppContent() {
       const messageId = await supabaseChatService.addMessage(messageData);
       console.log('✅ Message added with ID:', messageId);
 
-      // If there are other users online with different languages, translate the message
+      // Message is now visible to sender immediately
+      console.log('🎉 Message sent successfully - visible to sender immediately');
+
+      // Check if translation is needed and handle it in the background
       console.log('🔍 Checking translation conditions...');
       console.log('👥 user1OnlineName:', user1OnlineName);
       console.log('👥 user2OnlineName:', user2OnlineName);
@@ -259,29 +262,43 @@ function AppContent() {
       console.log('🌍 user2Language:', user2Language);
       
       if (user1OnlineName && user2OnlineName && user1Language && user2Language && user1Language !== user2Language) {
-        console.log('🔄 Translation needed, starting translation...');
+        console.log('🔄 Translation needed, starting background translation...');
         const targetLanguage = currentSender === 'user1' ? user2Language : user1Language;
         const sourceLanguage = myLanguage;
 
         const receivingUser = currentSender === 'user1' ? 'user2' : 'user1';
+        
+        // Set typing indicator for receiving user
         setTypingUser(receivingUser);
         console.log('⏳ Setting typing indicator for:', receivingUser);
 
-        try {
-          console.log('🌐 Translating from', sourceLanguage, 'to', targetLanguage);
-          const translated = await translateText(messageText, sourceLanguage, targetLanguage);
-          console.log('✅ Translation result:', translated);
-          await supabaseChatService.updateMessage(messageId, { translatedText: translated });
-          console.log('✅ Translation saved to message');
-        } finally {
-          setTypingUser(null);
-          console.log('✅ Typing indicator cleared');
-        }
+        // Add a minimum typing duration for better UX
+        const minTypingDuration = 1000; // 1 second minimum
+        const typingStartTime = Date.now();
+
+        // Do translation in background (don't await)
+        translateText(messageText, sourceLanguage, targetLanguage)
+          .then(async (translated) => {
+            console.log('✅ Translation result:', translated);
+            await supabaseChatService.updateMessage(messageId, { translatedText: translated });
+            console.log('✅ Translation saved to message');
+          })
+          .catch((error) => {
+            console.error('❌ Translation failed:', error);
+          })
+          .finally(() => {
+            // Ensure minimum typing duration has passed
+            const elapsed = Date.now() - typingStartTime;
+            const remainingTime = Math.max(0, minTypingDuration - elapsed);
+            
+            setTimeout(() => {
+              setTypingUser(null);
+              console.log('✅ Typing indicator cleared');
+            }, remainingTime);
+          });
       } else {
         console.log('ℹ️ No translation needed');
       }
-      
-      console.log('🎉 Message send process completed successfully');
     } catch (error) {
       console.error('💥 Error sending message:', error);
       console.error('💥 Error details:', {
@@ -556,14 +573,14 @@ function AppContent() {
             </div>
           );
         })}
-        {typingUser && typingUser === currentSender && (
+        {typingUser && typingUser !== currentSender && (
           <div className="translating-indicator">
             <div className="typing-dots">
               <span></span>
               <span></span>
               <span></span>
             </div>
-            <span>{currentSender === 'user1' ? 'User 2' : 'User 1'} is typing…</span>
+            <span>{typingUser === 'user1' ? 'User 1' : 'User 2'} is typing…</span>
           </div>
         )}
         <div ref={messagesEndRef} />
