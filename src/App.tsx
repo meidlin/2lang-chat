@@ -28,6 +28,7 @@ const LANGUAGES: Language[] = [
 function App() {
   const [user1Language, setUser1Language] = useState<string>('');
   const [user2Language, setUser2Language] = useState<string>('');
+  const [myLanguage, setMyLanguage] = useState<string>('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [currentSender, setCurrentSender] = useState<'user1' | 'user2'>('user1');
@@ -118,6 +119,17 @@ function App() {
     const clientId = getOrCreateClientId();
     sharedChatService.updatePresence(clientId, displayName, role as 'user1' | 'user2' | 'spectator');
   }, [displayName, role]);
+
+  // Sync my language choice with the appropriate user language
+  useEffect(() => {
+    if (!myLanguage || !role) return;
+    
+    if (role === 'user1') {
+      setUser1Language(myLanguage);
+    } else if (role === 'user2') {
+      setUser2Language(myLanguage);
+    }
+  }, [myLanguage, role]);
 
   // OpenAI key entry removed; service will use env var if set
 
@@ -240,7 +252,7 @@ function App() {
     );
   }
 
-  if (!user1Language || !user2Language || !role) {
+  if (!myLanguage || !role) {
     return (
       <div className="language-selection">
         <div className="language-container">
@@ -267,6 +279,7 @@ function App() {
                     key={lang.code}
                     className={`language-btn ${user1Language === lang.code ? 'selected' : ''}`}
                     onClick={() => setUser1Language(lang.code)}
+                    disabled={role !== 'user1'}
                   >
                     <span className="flag">{lang.flag}</span>
                     <span className="name">{lang.name}</span>
@@ -284,6 +297,7 @@ function App() {
                     key={lang.code}
                     className={`language-btn ${user2Language === lang.code ? 'selected' : ''}`}
                     onClick={() => setUser2Language(lang.code)}
+                    disabled={role !== 'user2'}
                   >
                     <span className="flag">{lang.flag}</span>
                     <span className="name">{lang.name}</span>
@@ -293,16 +307,37 @@ function App() {
             </div>
           </div>
 
+          {/* My Language Selection */}
+          <div className="language-section" style={{ marginTop: '20px' }}>
+            <h3>🌍 Choose Your Language</h3>
+            <div className="language-options">
+              {LANGUAGES.map(lang => (
+                <button
+                  key={lang.code}
+                  className={`language-btn ${myLanguage === lang.code ? 'selected' : ''}`}
+                  onClick={() => setMyLanguage(lang.code)}
+                >
+                  <span className="flag">{lang.flag}</span>
+                  <span className="name">{lang.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div style={{ textAlign: 'center', marginBottom: 8, color: '#555' }}>
-            {role === 'user1' && 'Waiting for User 2 to join…'}
+            {role === 'user1' && !user2OnlineName && 'Waiting for User 2 to join…'}
+            {role === 'user1' && user2OnlineName && 'User 2 is online!'}
             {role === 'user2' && 'Connected with User 1.'}
             {role === 'spectator' && 'Spectator mode: read‑only view.'}
           </div>
 
-          {user1Language && user2Language && role && (
+          {myLanguage && user1Language && user2Language && (
             <button 
               className="start-chat-btn"
-              onClick={() => {}}
+              onClick={() => {
+                // Set the current sender based on role
+                setCurrentSender(role === 'user1' ? 'user1' : 'user2');
+              }}
             >
               Start Chatting! 💬
             </button>
