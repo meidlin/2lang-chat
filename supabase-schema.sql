@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS messages (
   sender VARCHAR(10) NOT NULL CHECK (sender IN ('user1', 'user2')),
   sender_name VARCHAR(100) NOT NULL,
   show_original BOOLEAN DEFAULT FALSE,
+  is_translating BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

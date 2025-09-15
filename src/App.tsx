@@ -13,6 +13,7 @@ interface Message {
   senderName: string;
   timestamp: Date;
   showOriginal?: boolean;
+  isTranslating?: boolean;
 }
 
 interface Language {
@@ -285,12 +286,16 @@ function AppContent() {
     console.log('✅ Message validation passed, proceeding...');
 
     try {
+      // Check if translation is needed first
+      const needsTranslation = !!(user1OnlineName && user2OnlineName && user1Language && user2Language && user1Language !== user2Language);
+      
       console.log('📤 Adding message to Supabase...');
       const messageData = {
         text: messageText,
         sender: currentSender,
         senderName: displayName || 'Anonymous',
-        showOriginal: false
+        showOriginal: false,
+        isTranslating: needsTranslation // Mark as translating if translation is needed
       };
       console.log('📦 Message data:', messageData);
       
@@ -300,14 +305,7 @@ function AppContent() {
       // Message is now visible to sender immediately
       console.log('🎉 Message sent successfully - visible to sender immediately');
 
-      // Check if translation is needed and handle it in the background
-      console.log('🔍 Checking translation conditions...');
-      console.log('👥 user1OnlineName:', user1OnlineName);
-      console.log('👥 user2OnlineName:', user2OnlineName);
-      console.log('🌍 user1Language:', user1Language);
-      console.log('🌍 user2Language:', user2Language);
-      
-      if (user1OnlineName && user2OnlineName && user1Language && user2Language && user1Language !== user2Language) {
+      if (needsTranslation) {
         console.log('🔄 Translation needed, starting background translation...');
         const targetLanguage = currentSender === 'user1' ? user2Language : user1Language;
         const sourceLanguage = myLanguage;
@@ -324,11 +322,16 @@ function AppContent() {
         translateText(messageText, sourceLanguage, targetLanguage)
           .then(async (translated) => {
             console.log('✅ Translation result:', translated);
-            await supabaseChatService.updateMessage(messageId, { translatedText: translated });
+            await supabaseChatService.updateMessage(messageId, { 
+              translatedText: translated,
+              isTranslating: false // Mark translation as complete
+            });
             console.log('✅ Translation saved to message');
           })
           .catch((error) => {
             console.error('❌ Translation failed:', error);
+            // Mark translation as complete even if it failed
+            supabaseChatService.updateMessage(messageId, { isTranslating: false });
           })
           .finally(async () => {
             // Ensure minimum typing duration has passed
@@ -569,6 +572,13 @@ function AppContent() {
           const isSentByCurrentUser = message.sender === currentSender;
           const hasTranslation = Boolean(message.translatedText);
           const showTranslation = !isSentByCurrentUser && hasTranslation && !message.showOriginal;
+          
+          // Hide message from receiver if it's still being translated
+          const shouldHideMessage = !isSentByCurrentUser && message.isTranslating && !hasTranslation;
+          
+          if (shouldHideMessage) {
+            return null; // Don't render the message for receiver while translating
+          }
 
           return (
             <div key={message.id} className={`message ${isSentByCurrentUser ? 'sent' : 'received'}`}>

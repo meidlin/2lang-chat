@@ -9,6 +9,7 @@ export interface SharedMessage {
   senderName: string;
   timestamp: number;
   showOriginal?: boolean;
+  isTranslating?: boolean;
 }
 
 export interface SharedPresence {
@@ -83,6 +84,7 @@ class SupabaseChatService {
         sender: message.sender,
         sender_name: message.senderName,
         show_original: message.showOriginal || false,
+        is_translating: message.isTranslating || false,
       };
       console.log('📦 Insert data:', insertData);
       
@@ -116,6 +118,7 @@ class SupabaseChatService {
       const updateData: any = {};
       if (updates.translatedText !== undefined) updateData.translated_text = updates.translatedText;
       if (updates.showOriginal !== undefined) updateData.show_original = updates.showOriginal;
+      if (updates.isTranslating !== undefined) updateData.is_translating = updates.isTranslating;
 
       const { error } = await supabase
         .from('messages')
@@ -149,6 +152,7 @@ class SupabaseChatService {
         senderName: msg.sender_name,
         timestamp: new Date(msg.created_at).getTime(),
         showOriginal: msg.show_original,
+        isTranslating: msg.is_translating,
       }));
     } catch (error) {
       console.error('Error fetching messages:', error);
