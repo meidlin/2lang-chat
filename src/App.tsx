@@ -465,12 +465,18 @@ function AppContent() {
           <button className="clear-users-btn" onClick={async () => {
             try {
               await supabaseChatService.clearAllPresence();
-              alert('All users cleared! Refresh the page to see the changes.');
+              await supabaseChatService.clearChat();
+              setMessages([]);
+              setUser1OnlineName(null);
+              setUser2OnlineName(null);
+              setUser1Language('');
+              setUser2Language('');
+              alert('All users and messages cleared!');
             } catch (error) {
-              console.error('Error clearing users:', error);
-              alert('Failed to clear users. Check console for details.');
+              console.error('Error clearing users and messages:', error);
+              alert('Failed to clear. Check console for details.');
             }
-          }} aria-label="Clear all users">Clear All Users</button>
+          }} aria-label="Clear all users and messages">Clear All</button>
           <button className="switch-user-btn" onClick={switchSender}>
             Switch to {currentSender === 'user1' ? 'User 2' : 'User 1'}
           </button>
