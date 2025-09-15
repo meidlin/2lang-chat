@@ -25,29 +25,8 @@ export class TranslationService {
     
     if (!this.apiKey) {
       console.log('⚠️ No OpenAI API key, trying fallback services...');
-      // Try public translation fallbacks when no OpenAI key is set
-      try {
-        console.log('🔄 Trying LibreTranslate...');
-        const lt = await this.translateViaLibreTranslate(text, from, to);
-        if (this.isTargetLanguageSatisfied(lt, to)) {
-          console.log('✅ LibreTranslate success:', lt);
-          return { translatedText: lt };
-        }
-      } catch (e1) {
-        console.log('❌ LibreTranslate failed:', e1);
-      }
-      try {
-        console.log('🔄 Trying MyMemory...');
-        const mm = await this.translateViaMyMemory(text, from, to);
-        if (this.isTargetLanguageSatisfied(mm, to)) {
-          console.log('✅ MyMemory success:', mm);
-          return { translatedText: mm };
-        }
-      } catch (e2) {
-        console.log('❌ MyMemory failed:', e2);
-      }
-      console.log('⚠️ All fallbacks failed, using mock translation');
-      return this.getMockTranslation(text, from, to);
+      // Try multiple fallback services in parallel with timeout
+      return this.translateWithFallbacks(text, from, to);
     }
 
     if (fromLanguage === toLanguage) {
@@ -73,6 +52,10 @@ export class TranslationService {
       const fromLangName = languageNames[from as keyof typeof languageNames] || from;
       const toLangName = languageNames[to as keyof typeof languageNames] || to;
 
+      // Add timeout to prevent hanging
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
       const response = await fetch(this.baseUrl, {
         method: 'POST',
         headers: {
@@ -80,21 +63,24 @@ export class TranslationService {
           'Authorization': `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model: 'gpt-3.5-turbo', // Use faster model
           messages: [
             {
               role: 'system',
-              content: `You are a professional translator. Translate the user's message from ${fromLangName} to ${toLangName}. Rules: 1) Output only the translation text (no quotes or commentary). 2) Use natural, polite ${toLangName}. 3) Do not romanize; use native script.`
+              content: `Translate from ${fromLangName} to ${toLangName}. Output only the translation.`
             },
             {
               role: 'user',
               content: text
             }
           ],
-          max_tokens: 1000,
-          temperature: 0.2,
+          max_tokens: 500, // Reduced for faster response
+          temperature: 0.1, // Lower temperature for more consistent results
         }),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         throw new Error(`Translation API error: ${response.status}`);
@@ -109,9 +95,40 @@ export class TranslationService {
 
       return { translatedText };
     } catch (error) {
-      console.error('Translation error:', error);
-      // Fallback to mock translation
-      return this.getMockTranslation(text, from, to);
+      console.error('OpenAI translation error:', error);
+      // Fallback to other services
+      return this.translateWithFallbacks(text, from, to);
+    }
+  }
+
+  private async translateWithFallbacks(text: string, fromLanguage: string, toLanguage: string): Promise<TranslationResponse> {
+    // Try all fallback services in parallel with timeout
+    const timeout = 5000; // 5 second timeout per service
+    
+    const promises = [
+      this.translateViaLibreTranslate(text, fromLanguage, toLanguage).catch(e => ({ error: e })),
+      this.translateViaMyMemory(text, fromLanguage, toLanguage).catch(e => ({ error: e })),
+      this.translateViaGoogleTranslate(text, fromLanguage, toLanguage).catch(e => ({ error: e }))
+    ];
+
+    try {
+      const results = await Promise.allSettled(promises);
+      
+      for (const result of results) {
+        if (result.status === 'fulfilled' && !('error' in result.value)) {
+          const translation = result.value as string;
+          if (this.isTargetLanguageSatisfied(translation, toLanguage)) {
+            console.log('✅ Fallback translation success:', translation);
+            return { translatedText: translation };
+          }
+        }
+      }
+      
+      console.log('⚠️ All fallbacks failed, using mock translation');
+      return this.getMockTranslation(text, fromLanguage, toLanguage);
+    } catch (error) {
+      console.error('All fallback services failed:', error);
+      return this.getMockTranslation(text, fromLanguage, toLanguage);
     }
   }
 
@@ -129,6 +146,10 @@ export class TranslationService {
       format: 'text'
     } as const;
 
+    // Add timeout to prevent hanging
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
     let lastError: unknown = null;
     for (const url of endpoints) {
       try {
@@ -137,8 +158,12 @@ export class TranslationService {
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
+          signal: controller.signal
         });
+        
+        clearTimeout(timeoutId);
+        
         if (!res.ok) {
           throw new Error(`LibreTranslate error ${res.status}`);
         }
@@ -157,21 +182,62 @@ export class TranslationService {
 
   private async translateViaMyMemory(text: string, fromLanguage: string, toLanguage: string): Promise<string> {
     const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${encodeURIComponent(fromLanguage)}|${encodeURIComponent(toLanguage)}`;
-    const res = await fetch(url);
-    if (!res.ok) {
-      throw new Error(`MyMemory error ${res.status}`);
+    
+    // Add timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    try {
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      
+      if (!res.ok) {
+        throw new Error(`MyMemory error ${res.status}`);
+      }
+      const data = await res.json();
+      const translated = data?.responseData?.translatedText;
+      if (typeof translated === 'string' && translated.length > 0) {
+        return translated;
+      }
+      // Try matches as fallback
+      const match = Array.isArray(data?.matches) ? data.matches.find((m: any) => m?.translation) : null;
+      if (match?.translation) {
+        return match.translation as string;
+      }
+      throw new Error('Invalid response from MyMemory');
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
     }
-    const data = await res.json();
-    const translated = data?.responseData?.translatedText;
-    if (typeof translated === 'string' && translated.length > 0) {
-      return translated;
+  }
+
+  private async translateViaGoogleTranslate(text: string, fromLanguage: string, toLanguage: string): Promise<string> {
+    // Use Google Translate's public API (unofficial but fast)
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${fromLanguage}&tl=${toLanguage}&dt=t&q=${encodeURIComponent(text)}`;
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    
+    try {
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      
+      if (!res.ok) {
+        throw new Error(`Google Translate error ${res.status}`);
+      }
+      
+      const data = await res.json();
+      if (Array.isArray(data) && Array.isArray(data[0]) && data[0].length > 0) {
+        const translation = data[0].map((item: any) => item[0]).join('');
+        if (translation && translation.trim()) {
+          return translation.trim();
+        }
+      }
+      throw new Error('Invalid response from Google Translate');
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
     }
-    // Try matches as fallback
-    const match = Array.isArray(data?.matches) ? data.matches.find((m: any) => m?.translation) : null;
-    if (match?.translation) {
-      return match.translation as string;
-    }
-    throw new Error('Invalid response from MyMemory');
   }
 
   private getMockTranslation(text: string, fromLanguage: string, toLanguage: string): TranslationResponse {
