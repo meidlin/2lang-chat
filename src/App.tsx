@@ -573,7 +573,7 @@ function AppContent() {
             </div>
           );
         })}
-        {typingUser && typingUser !== currentSender && (
+        {typingUser && (
           <div className="translating-indicator">
             <div className="typing-dots">
               <span></span>
