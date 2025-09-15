@@ -752,6 +752,7 @@ function AppContent() {
 
           {/* Waiting/Connection Status */}
           {(() => {
+            console.log('🎯 REACHED WAITING STATE COMPONENT');
             console.log('🎯 Waiting state render:', { role, user2OnlineName, condition: role === 'user1' && !user2OnlineName });
             return null;
           })()}
