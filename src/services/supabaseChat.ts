@@ -188,6 +188,31 @@ class SupabaseChatService {
     }
   }
 
+  async removePresence(clientId: string) {
+    if (!supabase) {
+      console.warn('⚠️ Supabase not available - using cross-tab communication for presence removal');
+      crossTabService.removePresence(clientId);
+      return;
+    }
+
+    try {
+      console.log('🗑️ Removing presence for client:', clientId);
+      const { error } = await supabase
+        .from('presence')
+        .delete()
+        .eq('client_id', clientId);
+
+      if (error) {
+        console.error('❌ Error removing presence:', error);
+        throw error;
+      }
+      
+      console.log('✅ Presence removed successfully');
+    } catch (error) {
+      console.error('💥 Error removing presence:', error);
+    }
+  }
+
   async getPresence(): Promise<SharedPresence[]> {
     if (!supabase) {
       console.warn('⚠️ Supabase not available - using cross-tab communication for presence');

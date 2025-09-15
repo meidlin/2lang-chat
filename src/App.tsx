@@ -134,11 +134,42 @@ function AppContent() {
       setConnectionStatus('connected');
     });
 
+    // Add cleanup when user closes the window or navigates away
+    const handleBeforeUnload = async () => {
+      if (displayName && role) {
+        const clientId = getOrCreateClientId();
+        try {
+          await supabaseChatService.removePresence(clientId);
+          console.log('🧹 Cleaned up presence on window close');
+        } catch (error) {
+          console.error('❌ Error cleaning up presence:', error);
+        }
+      }
+    };
+
+    // Also cleanup when page becomes hidden (tab switch, minimize, etc.)
+    const handleVisibilityChange = async () => {
+      if (document.hidden && displayName && role) {
+        const clientId = getOrCreateClientId();
+        try {
+          await supabaseChatService.removePresence(clientId);
+          console.log('🧹 Cleaned up presence on visibility change');
+        } catch (error) {
+          console.error('❌ Error cleaning up presence:', error);
+        }
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       unsubscribeMessages();
       unsubscribePresence();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [displayName]);
+  }, [displayName, role]);
 
   // Update presence when displayName changes
   useEffect(() => {

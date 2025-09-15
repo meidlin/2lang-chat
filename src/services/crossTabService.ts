@@ -161,6 +161,22 @@ class CrossTabService {
     return [...this.presence];
   }
 
+  removePresence(clientId: string) {
+    const index = this.presence.findIndex(p => p.clientId === clientId);
+    if (index !== -1) {
+      this.presence.splice(index, 1);
+      console.log('🗑️ Removed presence for client:', clientId);
+      
+      // Broadcast to other tabs
+      this.channel.postMessage({
+        type: 'PRESENCE_UPDATED',
+        data: { clientId, action: 'removed' }
+      });
+      
+      this.notifyPresenceListeners();
+    }
+  }
+
   // Subscription methods
   subscribeToMessages(callback: (messages: SharedMessage[]) => void) {
     this.messageListeners.add(callback);
