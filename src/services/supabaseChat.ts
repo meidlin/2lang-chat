@@ -222,16 +222,22 @@ class SupabaseChatService {
     }
   }
 
-  async getMessages(): Promise<SharedMessage[]> {
+  async getMessages(roomId?: string): Promise<SharedMessage[]> {
     if (!supabase) {
       throw new Error('Supabase not available - cannot get messages');
     }
 
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('messages')
         .select('*')
         .order('created_at', { ascending: true });
+
+      if (roomId) {
+        query = query.eq('room_id', roomId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -241,6 +247,8 @@ class SupabaseChatService {
         translatedText: msg.translated_text,
         sender: msg.sender,
         senderName: msg.sender_name,
+        senderId: msg.sender_id,
+        roomId: msg.room_id,
         timestamp: new Date(msg.created_at).getTime(),
         showOriginal: msg.show_original,
         isTranslating: msg.is_translating,
@@ -311,26 +319,33 @@ class SupabaseChatService {
     }
   }
 
-  async getPresence(): Promise<SharedPresence[]> {
+  async getPresence(roomId?: string): Promise<SharedPresence[]> {
     if (!supabase) {
       throw new Error('Supabase not available - cannot get presence');
     }
 
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('presence')
         .select('*')
-        .gt('last_seen', new Date(Date.now() - 5 * 60 * 1000).toISOString())
         .order('last_seen', { ascending: false });
+
+      if (roomId) {
+        query = query.eq('room_id', roomId);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
       console.log('📊 Raw presence data from DB:', data);
       const mappedData = data.map(p => ({
         clientId: p.client_id,
+        userId: p.user_id,
         name: p.name,
         role: p.role,
         language: p.language,
+        roomId: p.room_id,
         lastSeen: new Date(p.last_seen).getTime(),
       }));
       console.log('📊 Mapped presence data:', mappedData);
@@ -342,11 +357,11 @@ class SupabaseChatService {
   }
 
   // Subscription methods
-  subscribeToMessages(callback: (messages: SharedMessage[]) => void) {
+  subscribeToMessages(callback: (messages: SharedMessage[]) => void, roomId?: string) {
     this.messageListeners.add(callback);
     
     // Immediately call with current messages
-    this.getMessages().then(callback);
+    this.getMessages(roomId).then(callback);
 
     if (!supabase) {
       throw new Error('Supabase not available - cannot subscribe to messages');
@@ -358,7 +373,7 @@ class SupabaseChatService {
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'messages' },
         () => {
-          this.getMessages().then(messages => {
+          this.getMessages(roomId).then(messages => {
             this.messageListeners.forEach(listener => listener(messages));
           });
         }
@@ -373,11 +388,11 @@ class SupabaseChatService {
     };
   }
 
-  subscribeToPresence(callback: (presence: SharedPresence[]) => void) {
+  subscribeToPresence(callback: (presence: SharedPresence[]) => void, roomId?: string) {
     this.presenceListeners.add(callback);
     
     // Immediately call with current presence
-    this.getPresence().then(callback);
+    this.getPresence(roomId).then(callback);
 
     if (!supabase) {
       throw new Error('Supabase not available - cannot subscribe to presence');
@@ -389,7 +404,7 @@ class SupabaseChatService {
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'presence' },
         () => {
-          this.getPresence().then(presence => {
+          this.getPresence(roomId).then(presence => {
             this.presenceListeners.forEach(listener => listener(presence));
           });
         }

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 import { translationService } from './services/translationService';
 import { getOrCreateClientId } from './services/realtime';
-import { supabaseChatService, TypingIndicator } from './services/supabaseChat';
+import { supabaseChatService, TypingIndicator, ChatRoom } from './services/supabaseChat';
 import ErrorBoundary from './ErrorBoundary';
 
 interface Message {
@@ -27,6 +27,11 @@ const LANGUAGES: Language[] = [
   { code: 'ja', name: '日本語', flag: '🇯🇵' },
 ];
 
+// Utility function to generate unique user IDs
+function generateUserId(): string {
+  return 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+}
+
 function AppContent() {
   console.log('🚀 App component is starting to render...');
   const [user1Language, setUser1Language] = useState<string>('');
@@ -45,10 +50,84 @@ function AppContent() {
   const [user2OnlineName, setUser2OnlineName] = useState<string | null>(null);
   const [totalUsers, setTotalUsers] = useState<number>(0);
   const [presenceDebug, setPresenceDebug] = useState<string>('');
+  const [currentRoomId, setCurrentRoomId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [availableRooms, setAvailableRooms] = useState<ChatRoom[]>([]);
+  const [showRoomSelection, setShowRoomSelection] = useState<boolean>(false);
+  const [newRoomName, setNewRoomName] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  // Load available rooms
+  const loadRooms = async () => {
+    try {
+      const rooms = await supabaseChatService.getRooms();
+      setAvailableRooms(rooms);
+      console.log('📋 Loaded rooms:', rooms);
+    } catch (error) {
+      console.error('❌ Error loading rooms:', error);
+    }
+  };
+
+  // Create a new room
+  const createRoom = async () => {
+    if (!newRoomName.trim()) return;
+    
+    try {
+      const roomId = await supabaseChatService.createRoom(newRoomName.trim());
+      console.log('✅ Created room:', roomId);
+      setNewRoomName('');
+      await loadRooms(); // Refresh room list
+    } catch (error) {
+      console.error('❌ Error creating room:', error);
+      alert('Failed to create room. Please try again.');
+    }
+  };
+
+  // Join a room
+  const joinRoom = async (roomId: string) => {
+    if (!displayName || !myLanguage) {
+      alert('Please enter your name and select a language first.');
+      return;
+    }
+
+    try {
+      const userId = generateUserId();
+      setCurrentUserId(userId);
+      setCurrentRoomId(roomId);
+      
+      // Get current presence in the room to assign role
+      const presence = await supabaseChatService.getPresence();
+      const roomPresence = presence.filter(p => p.roomId === roomId);
+      
+      const user1Count = roomPresence.filter(p => p.role === 'user1').length;
+      const user2Count = roomPresence.filter(p => p.role === 'user2').length;
+      
+      let newRole: 'user1' | 'user2' | 'spectator';
+      if (user1Count === 0) {
+        newRole = 'user1';
+      } else if (user2Count === 0) {
+        newRole = 'user2';
+      } else {
+        newRole = 'spectator';
+      }
+      
+      setRole(newRole);
+      if (newRole === 'user1' || newRole === 'user2') {
+        setCurrentSender(newRole);
+      }
+      
+      // Join the room
+      await supabaseChatService.joinRoom(roomId, userId, displayName, newRole, myLanguage);
+      setShowRoomSelection(false);
+      console.log('✅ Joined room:', roomId, 'as', newRole);
+    } catch (error) {
+      console.error('❌ Error joining room:', error);
+      alert('Failed to join room. Please try again.');
+    }
   };
 
   useEffect(() => {
@@ -60,63 +139,16 @@ function AppContent() {
       const clientId = getOrCreateClientId();
       console.log('🔧 Initializing chat for clientId:', clientId);
       
-      // Clean up old presence first
-      await supabaseChatService.cleanupOldPresence();
+      // Load available rooms
+      await loadRooms();
       
-      // Assign role based on existing presence or create new one
-      const presence = await supabaseChatService.getPresence();
-      console.log('👥 Current presence:', presence);
-      
-      const existingUser = presence.find(p => p.clientId === clientId);
-      console.log('🔍 Existing user found:', existingUser);
-      
-      if (existingUser) {
-        console.log('✅ Using existing role:', existingUser.role);
-        setRole(existingUser.role);
-        // Set sender based on role
-        if (existingUser.role === 'user1' || existingUser.role === 'user2') {
-          setCurrentSender(existingUser.role);
-        }
-      } else {
-        // New user - assign role based on existing users
-        const user1Count = presence.filter(p => p.role === 'user1').length;
-        const user2Count = presence.filter(p => p.role === 'user2').length;
-        
-        console.log('📊 Role counts - User1:', user1Count, 'User2:', user2Count);
-        
-        let newRole: 'user1' | 'user2' | 'spectator';
-        if (user1Count === 0) {
-          newRole = 'user1';
-        } else if (user2Count === 0) {
-          newRole = 'user2';
-        } else {
-          newRole = 'spectator';
-        }
-        
-        console.log('🎯 Assigned new role:', newRole);
-        setRole(newRole);
-        
-        // Set sender based on role
-        if (newRole === 'user1' || newRole === 'user2') {
-          setCurrentSender(newRole);
-        }
-        
-        // Update presence immediately with the new role
-        await supabaseChatService.updatePresence(clientId, displayName || 'Anonymous', newRole, myLanguage);
-        console.log('✅ Presence updated with role:', newRole);
-        
-        // Wait a moment for the presence to propagate
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Refresh presence to ensure it's updated
-        const updatedPresence = await supabaseChatService.getPresence();
-        console.log('🔄 Refreshed presence after role assignment:', updatedPresence);
-      }
+      // For now, we'll show room selection after user enters name and language
+      // The old role assignment logic will be handled when joining a room
     };
 
     initializeChat();
 
-    // Subscribe to messages
+    // Subscribe to messages (only for current room)
     const unsubscribeMessages = supabaseChatService.subscribeToMessages((sharedMessages) => {
       const convertedMessages: Message[] = sharedMessages.map(msg => ({
         ...msg,
@@ -124,9 +156,9 @@ function AppContent() {
       }));
       setMessages(convertedMessages);
       setConnectionStatus('connected');
-    });
+    }, currentRoomId || undefined);
 
-    // Subscribe to presence
+    // Subscribe to presence (only for current room)
     const unsubscribePresence = supabaseChatService.subscribeToPresence((presence) => {
       setTotalUsers(presence.length);
       
@@ -144,9 +176,9 @@ function AppContent() {
       setUser1Language(user1?.language || '');
       setUser2Language(user2?.language || '');
       
-      setPresenceDebug(`Supabase real-time: ${presence.length} users online`);
+      setPresenceDebug(`Supabase real-time: ${presence.length} users online in room ${currentRoomId}`);
       setConnectionStatus('connected');
-    });
+    }, currentRoomId || undefined);
 
     // Subscribe to typing indicators
     const unsubscribeTyping = supabaseChatService.subscribeToTypingIndicator((typing) => {
@@ -294,6 +326,8 @@ function AppContent() {
         text: messageText,
         sender: currentSender,
         senderName: displayName || 'Anonymous',
+        senderId: currentUserId || '',
+        roomId: currentRoomId || '',
         showOriginal: false,
         isTranslating: needsTranslation // Mark as translating if translation is needed
       };
@@ -453,14 +487,129 @@ function AppContent() {
                 if (n) {
                   console.log('🚀 Starting chat with name:', n, 'and language:', myLanguage);
                   setDisplayName(n);
-                  // Don't set sender here - let the role assignment logic handle it
+                  setShowRoomSelection(true);
                 }
               }}
               style={{ marginTop: '20px' }}
             >
-              Start Chat
+              Choose Room
             </button>
           )}
+        </div>
+      </div>
+    );
+  }
+
+  // Room selection screen
+  if (showRoomSelection) {
+    return (
+      <div className="language-selection">
+        <div className="language-container">
+          <h1>🏠 Choose a Chat Room</h1>
+          <p>Welcome <strong>{displayName}</strong>! Select a room to join or create a new one.</p>
+          
+          {/* Create New Room */}
+          <div style={{ marginBottom: '30px', padding: '20px', background: '#f8f9fa', borderRadius: '10px' }}>
+            <h3 style={{ margin: '0 0 15px 0', color: '#333' }}>Create New Room</h3>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <input
+                type="text"
+                placeholder="Room name (e.g., 'English-Japanese Chat')"
+                value={newRoomName}
+                onChange={(e) => setNewRoomName(e.target.value)}
+                style={{ 
+                  flex: 1,
+                  padding: '12px 16px', 
+                  borderRadius: 8, 
+                  border: '1px solid #d1d5db', 
+                  fontSize: '16px'
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    createRoom();
+                  }
+                }}
+              />
+              <button 
+                onClick={createRoom}
+                disabled={!newRoomName.trim()}
+                style={{
+                  padding: '12px 20px',
+                  background: newRoomName.trim() ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : '#ccc',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  cursor: newRoomName.trim() ? 'pointer' : 'not-allowed',
+                  fontWeight: '600'
+                }}
+              >
+                Create
+              </button>
+            </div>
+          </div>
+
+          {/* Available Rooms */}
+          <div>
+            <h3 style={{ margin: '0 0 15px 0', color: '#333' }}>Available Rooms</h3>
+            {availableRooms.length === 0 ? (
+              <p style={{ color: '#666', fontStyle: 'italic' }}>No rooms available. Create one above!</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {availableRooms.map(room => (
+                  <button
+                    key={room.id}
+                    onClick={() => joinRoom(room.id)}
+                    style={{
+                      padding: '15px 20px',
+                      background: 'white',
+                      border: '2px solid #e0e0e0',
+                      borderRadius: 10,
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                      transition: 'all 0.3s ease',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.borderColor = '#667eea';
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.borderColor = '#e0e0e0';
+                      e.currentTarget.style.transform = 'translateY(0)';
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: '600', fontSize: '16px', marginBottom: '5px' }}>
+                        {room.name}
+                      </div>
+                      <div style={{ fontSize: '14px', color: '#666' }}>
+                        Created {new Date(room.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div style={{ color: '#667eea', fontSize: '20px' }}>→</div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Back Button */}
+          <button 
+            onClick={() => setShowRoomSelection(false)}
+            style={{
+              marginTop: '30px',
+              padding: '10px 20px',
+              background: 'transparent',
+              color: '#666',
+              border: '1px solid #d1d5db',
+              borderRadius: 8,
+              cursor: 'pointer'
+            }}
+          >
+            ← Back to Setup
+          </button>
         </div>
       </div>
     );
