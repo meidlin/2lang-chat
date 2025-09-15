@@ -365,7 +365,13 @@ function App() {
           type="text"
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+          onKeyDown={(e) => {
+            const ne = e as unknown as React.KeyboardEvent<HTMLInputElement> & { nativeEvent: any };
+            if (ne.key === 'Enter' && !ne.shiftKey && !(ne.nativeEvent && ne.nativeEvent.isComposing)) {
+              e.preventDefault();
+              sendMessage();
+            }
+          }}
           placeholder={`Type a message as ${currentSender === 'user1' ? 'User 1' : 'User 2'}...`}
           
         />
