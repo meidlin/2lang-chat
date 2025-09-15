@@ -45,7 +45,8 @@ function App() {
   }, [messages]);
   useEffect(() => {
     if (!supabase || !roomId) return;
-    const channel = supabase.channel(getChannelName(roomId), { config: { broadcast: { ack: true }, presence: { key: generateClientId() } } });
+    const clientId = generateClientId();
+    const channel = supabase.channel(getChannelName(roomId), { config: { broadcast: { ack: true }, presence: { key: clientId } } });
 
     channel.on('broadcast', { event: 'chat' }, ({ payload }: { payload: ChatEvent }) => {
       if (payload.type === 'message') {
@@ -67,11 +68,9 @@ function App() {
     
     channel.on('presence', { event: 'sync' }, () => {
       const state = channel.presenceState();
-      const allUsers = Object.values(state).flat();
-      // Assign roles in join order: first -> user1, second -> user2, rest -> spectators
-      const myKey = (channel as any).presenceKey as string;
-      const orderedKeys = allUsers.map((u: any) => u?.key).filter(Boolean) as string[];
-      const myIndex = orderedKeys.indexOf(myKey);
+      // Keys are presence keys (our clientIds)
+      const orderedKeys = Object.keys(state);
+      const myIndex = orderedKeys.indexOf(clientId);
       if (myIndex === 0) setRole('user1');
       else if (myIndex === 1) setRole('user2');
       else setRole('spectator');
@@ -79,7 +78,7 @@ function App() {
 
     channel.subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
-        await channel.track({ key: (channel as any).presenceKey });
+        await channel.track({ clientId });
       }
     });
     return () => { channel.unsubscribe(); };
