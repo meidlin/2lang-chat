@@ -414,7 +414,7 @@ function App() {
   return (
     <div className="app">
       <div style={{background: 'red', color: 'white', padding: '10px', textAlign: 'center'}}>
-        🚨 DEBUG: App is loading! If you see this, the app is working.
+        🚨 DEBUG: App is loading! If you see this, the app is working. (Version 2)
       </div>
       <EnvDebug />
       <div className="chat-header">
