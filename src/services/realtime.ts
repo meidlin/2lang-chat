@@ -1,4 +1,4 @@
-// import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Use environment variables if available, otherwise fallback to hardcoded values
@@ -7,8 +7,8 @@ const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || process.env.SUPABASE_U
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl3aGFhYnRyb3p1eXlqdXpraHF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MjE0NjcsImV4cCI6MjA3MzQ5NzQ2N30.2I1-PWeOzIcrwhoutptSZ42ixA9Y3BmHVouH0TJxQpg';
 
 // Check if we're using environment variables or fallback
-// const usingEnvVars = !!(process.env.REACT_APP_SUPABASE_URL || process.env.SUPABASE_URL);
-// const usingEnvKey = !!(process.env.REACT_APP_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY);
+const usingEnvVars = !!(process.env.REACT_APP_SUPABASE_URL || process.env.SUPABASE_URL);
+const usingEnvKey = !!(process.env.REACT_APP_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY);
 
 console.log('🔧 Realtime service initialization:');
 console.log('🔧 Environment variables:', {
@@ -52,13 +52,7 @@ if (supabaseUrl && supabaseAnonKey) {
 // Create Supabase client with error handling
 let supabase: SupabaseClient | null = null;
 
-// Temporarily disable Supabase due to invalid API key
-// TODO: Get fresh Supabase credentials to re-enable
-console.warn('⚠️ Supabase temporarily disabled - using in-memory fallback mode');
-console.warn('⚠️ To re-enable Supabase, get fresh API credentials from https://supabase.com/dashboard');
-
-// Uncomment the code below when you have fresh Supabase credentials:
-/*
+// Re-enable Supabase with fresh credentials and database
 try {
   if (supabaseUrl && supabaseAnonKey) {
     supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -81,7 +75,6 @@ try {
   console.error('❌ Error creating Supabase client:', error);
   supabase = null;
 }
-*/
 
 export { supabase };
 
