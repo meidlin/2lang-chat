@@ -334,31 +334,63 @@ function AppContent() {
     isUser2: role === 'user2'
   });
 
-  // Onboarding: ask for display name first
+  // Onboarding: ask for display name and language together
   if (!displayName) {
     return (
       <div className="language-selection">
         <div className="language-container">
           <h1>🌍 Multilingual Chat</h1>
-          <p>Welcome! What should we call you?</p>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+          <p>Welcome! What should we call you and what language do you speak?</p>
+          
+          {/* Name Input */}
+          <div style={{ marginBottom: '20px' }}>
             <input
               type="text"
               placeholder="Your name"
               value={pendingName}
               onChange={(e) => setPendingName(e.target.value)}
-              style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', width: '70%' }}
-            />
-            <button
-              className="start-chat-btn"
-              onClick={() => { 
-                const n = pendingName.trim(); 
-                if (n) { 
-                  setDisplayName(n); 
-                } 
+              style={{ 
+                padding: '12px 16px', 
+                borderRadius: 8, 
+                border: '1px solid #d1d5db', 
+                width: '100%',
+                fontSize: '16px',
+                textAlign: 'center'
               }}
-            >Continue</button>
+            />
           </div>
+
+          {/* Language Selection */}
+          <p style={{ marginBottom: '15px', fontSize: '14px', color: '#666' }}>Choose your language:</p>
+          <div className="language-grid">
+            {LANGUAGES.map(lang => (
+              <button
+                key={lang.code}
+                className={`language-btn ${myLanguage === lang.code ? 'selected' : ''}`}
+                onClick={() => setMyLanguage(lang.code)}
+              >
+                {lang.flag} {lang.name}
+              </button>
+            ))}
+          </div>
+          
+          {/* Start Chat Button */}
+          {pendingName.trim() && myLanguage && (
+            <button 
+              className="start-chat-btn"
+              onClick={() => {
+                const n = pendingName.trim();
+                if (n) {
+                  console.log('🚀 Starting chat with name:', n, 'and language:', myLanguage);
+                  setDisplayName(n);
+                  setCurrentSender('user1');
+                }
+              }}
+              style={{ marginTop: '20px' }}
+            >
+              Start Chat
+            </button>
+          )}
         </div>
       </div>
     );
@@ -382,22 +414,10 @@ function AppContent() {
           {/* OpenAI API key UI removed */}
           
           <div className="language-section">
-            <h3>🌍 Choose Your Language</h3>
+            <h3>🌍 Your Language</h3>
             <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '15px' }}>
-              Select the language you want to chat in. Other users will see your messages in their chosen language.
+              You're chatting in: <strong>{LANGUAGES.find(l => l.code === myLanguage)?.flag} {LANGUAGES.find(l => l.code === myLanguage)?.name}</strong>
             </p>
-            <div className="language-options">
-              {LANGUAGES.map(lang => (
-                <button
-                  key={lang.code}
-                  className={`language-btn ${myLanguage === lang.code ? 'selected' : ''}`}
-                  onClick={() => setMyLanguage(lang.code)}
-                >
-                  <span className="flag">{lang.flag}</span>
-                  <span className="name">{lang.name}</span>
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Show other users' language choices */}
@@ -430,17 +450,9 @@ function AppContent() {
             {role === 'spectator' && 'Spectator mode: read‑only view.'}
           </div>
 
-          {myLanguage && (
-            <button 
-              className="start-chat-btn"
-              onClick={() => {
-                // Set the current sender based on role
-                setCurrentSender(role === 'user1' ? 'user1' : 'user2');
-              }}
-            >
-              Start Chatting! 💬
-            </button>
-          )}
+          <p style={{ marginTop: '20px', fontSize: '14px', color: '#666' }}>
+            Setting up your chat session... You'll be able to start chatting once your role is assigned.
+          </p>
         </div>
       </div>
     );
