@@ -10,6 +10,11 @@ console.log('🔧 Environment variables:', {
   allEnvVars: Object.keys(process.env).filter(key => key.startsWith('REACT_APP_'))
 });
 
+console.log('🔍 Full environment check:');
+console.log('🔍 REACT_APP_SUPABASE_URL:', process.env.REACT_APP_SUPABASE_URL);
+console.log('🔍 REACT_APP_SUPABASE_ANON_KEY:', process.env.REACT_APP_SUPABASE_ANON_KEY ? 'PRESENT' : 'MISSING');
+console.log('🔍 All process.env keys:', Object.keys(process.env));
+
 if (supabaseUrl && supabaseAnonKey) {
   console.log('✅ Creating Supabase client with URL:', supabaseUrl);
   console.log('✅ Anon key present:', supabaseAnonKey.substring(0, 10) + '...');
