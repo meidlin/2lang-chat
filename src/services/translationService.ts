@@ -103,8 +103,6 @@ export class TranslationService {
 
   private async translateWithFallbacks(text: string, fromLanguage: string, toLanguage: string): Promise<TranslationResponse> {
     // Try all fallback services in parallel with timeout
-    const timeout = 5000; // 5 second timeout per service
-    
     const promises = [
       this.translateViaLibreTranslate(text, fromLanguage, toLanguage).catch(e => ({ error: e })),
       this.translateViaMyMemory(text, fromLanguage, toLanguage).catch(e => ({ error: e })),
@@ -115,8 +113,8 @@ export class TranslationService {
       const results = await Promise.allSettled(promises);
       
       for (const result of results) {
-        if (result.status === 'fulfilled' && !('error' in result.value)) {
-          const translation = result.value as string;
+        if (result.status === 'fulfilled' && typeof result.value === 'string') {
+          const translation = result.value;
           if (this.isTargetLanguageSatisfied(translation, toLanguage)) {
             console.log('✅ Fallback translation success:', translation);
             return { translatedText: translation };
