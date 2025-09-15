@@ -736,6 +736,10 @@ function AppContent() {
             borderRadius: '10px',
             color: '#856404'
           }}>
+            {/* Debug info */}
+            <div style={{ fontSize: '12px', color: '#666', marginBottom: '10px' }}>
+              DEBUG: role={role}, user2OnlineName={user2OnlineName ? 'true' : 'false'}, condition={role === 'user1' && !user2OnlineName ? 'true' : 'false'}
+            </div>
             {role === 'user1' && !user2OnlineName && (
               <div>
                 <div style={{ fontSize: '24px', marginBottom: '10px' }}>⏳</div>
@@ -785,6 +789,37 @@ function AppContent() {
                 <div style={{ fontSize: '24px', marginBottom: '10px' }}>👁️</div>
                 <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>Spectator mode</div>
                 <div style={{ fontSize: '14px' }}>Read-only view - you can see messages but not send them</div>
+              </div>
+            )}
+            {/* Fallback - show this if none of the above conditions match */}
+            {!(role === 'user1' && !user2OnlineName) && !(role === 'user1' && user2OnlineName) && !(role === 'user2') && !(role === 'spectator') && (
+              <div>
+                <div style={{ fontSize: '24px', marginBottom: '10px' }}>⏳</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>Waiting for another user...</div>
+                <div style={{ fontSize: '14px', marginBottom: '15px' }}>Share this room with someone to start chatting!</div>
+                <button 
+                  onClick={() => {
+                    const roomUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
+                    navigator.clipboard.writeText(roomUrl).then(() => {
+                      alert('Room link copied to clipboard! Share it with someone to invite them to chat.');
+                    }).catch(() => {
+                      alert(`Room ID: ${currentRoomId}\n\nShare this ID with someone so they can join your room.`);
+                    });
+                  }}
+                  style={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px 20px',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                  }}
+                >
+                  📤 Share Room Link
+                </button>
               </div>
             )}
           </div>
