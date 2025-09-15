@@ -58,17 +58,24 @@ function App() {
   useEffect(() => {
     const initializeChat = async () => {
       const clientId = getOrCreateClientId();
+      console.log('🔧 Initializing chat for clientId:', clientId);
       
       // Assign role based on existing presence or create new one
       const presence = await supabaseChatService.getPresence();
+      console.log('👥 Current presence:', presence);
+      
       const existingUser = presence.find(p => p.clientId === clientId);
+      console.log('🔍 Existing user found:', existingUser);
       
       if (existingUser) {
+        console.log('✅ Using existing role:', existingUser.role);
         setRole(existingUser.role);
       } else {
         // New user - assign role based on existing users
         const user1Count = presence.filter(p => p.role === 'user1').length;
         const user2Count = presence.filter(p => p.role === 'user2').length;
+        
+        console.log('📊 Role counts - User1:', user1Count, 'User2:', user2Count);
         
         let newRole: 'user1' | 'user2' | 'spectator';
         if (user1Count === 0) {
@@ -79,11 +86,12 @@ function App() {
           newRole = 'spectator';
         }
         
+        console.log('🎯 Assigned new role:', newRole);
         setRole(newRole);
-        // Update presence when we have a display name
-        if (displayName) {
-          await supabaseChatService.updatePresence(clientId, displayName, newRole);
-        }
+        
+        // Update presence immediately with the new role
+        await supabaseChatService.updatePresence(clientId, displayName || 'Anonymous', newRole);
+        console.log('✅ Presence updated with role:', newRole);
       }
     };
 

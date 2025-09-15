@@ -37,14 +37,21 @@ export function generateClientId(): string {
 
 export function getOrCreateClientId(): string {
   try {
-    // Always generate a new client ID for each session
-    // This ensures each new tab/incognito window = new user
-    const created = generateClientId();
-    // Store temporarily in sessionStorage instead of localStorage
-    // so it persists during the session but not across browser restarts
-    sessionStorage.setItem('client_id', created);
-    return created;
-  } catch {
+    // Check if we already have a client ID for this session
+    let clientId = sessionStorage.getItem('client_id');
+    
+    if (!clientId) {
+      // Generate a new client ID for this session
+      clientId = generateClientId();
+      sessionStorage.setItem('client_id', clientId);
+      console.log('🆕 Generated new client ID:', clientId);
+    } else {
+      console.log('♻️ Using existing client ID:', clientId);
+    }
+    
+    return clientId;
+  } catch (error) {
+    console.error('❌ Error with client ID:', error);
     return generateClientId();
   }
 }

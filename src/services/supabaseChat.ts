@@ -38,12 +38,19 @@ class SupabaseChatService {
     if (!supabase) return;
     
     try {
-      await supabase
+      console.log('🧹 Cleaning up old presence records...');
+      const { error } = await supabase
         .from('presence')
         .delete()
         .lt('last_seen', new Date(Date.now() - 5 * 60 * 1000).toISOString());
+      
+      if (error) {
+        console.error('❌ Error cleaning up old presence:', error);
+      } else {
+        console.log('✅ Old presence records cleaned up');
+      }
     } catch (error) {
-      console.error('Error cleaning up old presence:', error);
+      console.error('❌ Error cleaning up old presence:', error);
     }
   }
 
