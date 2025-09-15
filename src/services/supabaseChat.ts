@@ -31,16 +31,20 @@ class SupabaseChatService {
   private presenceListeners: Set<(presence: SharedPresence[]) => void> = new Set();
   private typingListeners: Set<(typing: TypingIndicator | null) => void> = new Set();
   private presenceCleanupInterval: NodeJS.Timeout | null = null;
+  private heartbeatInterval: NodeJS.Timeout | null = null;
+  private currentClientId: string | null = null;
+  private currentUserInfo: { name: string; role: 'user1' | 'user2' | 'spectator'; language?: string } | null = null;
 
   constructor() {
     this.startPresenceCleanup();
+    this.startHeartbeat();
   }
 
   private startPresenceCleanup() {
-    // Clean up old presence records every 30 seconds (more aggressive)
+    // Clean up old presence records every 5 minutes (less aggressive)
     this.presenceCleanupInterval = setInterval(() => {
       this.cleanupOldPresence();
-    }, 30000);
+    }, 5 * 60 * 1000); // 5 minutes
   }
 
   async cleanupOldPresence() {
@@ -48,10 +52,11 @@ class SupabaseChatService {
     
     try {
       console.log('🧹 Cleaning up old presence records...');
+      // Only clean up users who haven't been seen in 10 minutes (much more reasonable)
       const { error } = await supabase
         .from('presence')
         .delete()
-        .lt('last_seen', new Date(Date.now() - 1 * 60 * 1000).toISOString());
+        .lt('last_seen', new Date(Date.now() - 10 * 60 * 1000).toISOString());
       
       if (error) {
         console.error('❌ Error cleaning up old presence:', error);
@@ -165,6 +170,10 @@ class SupabaseChatService {
     if (!supabase) {
       throw new Error('Supabase not available - cannot update presence');
     }
+
+    // Store current user info for heartbeat
+    this.currentClientId = clientId;
+    this.currentUserInfo = { name, role, language };
 
     try {
       console.log('📝 Updating presence:', { clientId, name, role, language });
@@ -443,9 +452,37 @@ class SupabaseChatService {
     };
   }
 
+  private startHeartbeat() {
+    // Send heartbeat every 2 minutes to keep user active
+    this.heartbeatInterval = setInterval(() => {
+      this.sendHeartbeat();
+    }, 2 * 60 * 1000); // 2 minutes
+  }
+
+  private async sendHeartbeat() {
+    if (!this.currentClientId || !this.currentUserInfo) {
+      return; // No active user
+    }
+
+    try {
+      console.log('💓 Sending heartbeat...');
+      await this.updatePresence(
+        this.currentClientId,
+        this.currentUserInfo.name,
+        this.currentUserInfo.role,
+        this.currentUserInfo.language
+      );
+    } catch (error) {
+      console.error('❌ Heartbeat failed:', error);
+    }
+  }
+
   destroy() {
     if (this.presenceCleanupInterval) {
       clearInterval(this.presenceCleanupInterval);
+    }
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
     }
     this.messageListeners.clear();
     this.presenceListeners.clear();

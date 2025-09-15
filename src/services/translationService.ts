@@ -33,6 +33,32 @@ export class TranslationService {
       return { translatedText: text };
     }
 
+    // Try OpenAI API with retry logic
+    return this.translateWithRetry(text, from, to);
+  }
+
+  private async translateWithRetry(text: string, from: string, to: string, maxRetries: number = 2): Promise<TranslationResponse> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`🔄 OpenAI translation attempt ${attempt}/${maxRetries}`);
+        return await this.translateWithOpenAI(text, from, to);
+      } catch (error) {
+        console.error(`❌ OpenAI attempt ${attempt} failed:`, error);
+        
+        if (attempt === maxRetries) {
+          console.log('🔄 All OpenAI attempts failed, trying fallbacks...');
+          return this.translateWithFallbacks(text, from, to);
+        }
+        
+        // Wait before retry (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+      }
+    }
+    
+    return this.getMockTranslation(text, from, to);
+  }
+
+  private async translateWithOpenAI(text: string, from: string, to: string): Promise<TranslationResponse> {
     try {
       const languageNames = {
         'en': 'English',
@@ -54,7 +80,7 @@ export class TranslationService {
 
       // Add timeout to prevent hanging
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
       const response = await fetch(this.baseUrl, {
         method: 'POST',
@@ -83,7 +109,18 @@ export class TranslationService {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        throw new Error(`Translation API error: ${response.status}`);
+        const errorText = await response.text().catch(() => 'Unknown error');
+        console.error('OpenAI API error response:', { status: response.status, text: errorText });
+        
+        if (response.status === 429) {
+          throw new Error('Rate limit exceeded - too many requests');
+        } else if (response.status === 401) {
+          throw new Error('Invalid API key');
+        } else if (response.status >= 500) {
+          throw new Error('Server error - please try again');
+        } else {
+          throw new Error(`Translation API error: ${response.status} - ${errorText}`);
+        }
       }
 
       const data = await response.json();
@@ -96,17 +133,32 @@ export class TranslationService {
       return { translatedText };
     } catch (error) {
       console.error('OpenAI translation error:', error);
-      // Fallback to other services
-      return this.translateWithFallbacks(text, from, to);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        name: error instanceof Error ? error.name : 'Unknown',
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      throw error; // Re-throw to be caught by retry logic
     }
   }
 
   private async translateWithFallbacks(text: string, fromLanguage: string, toLanguage: string): Promise<TranslationResponse> {
+    console.log('🔄 Trying fallback translation services...');
+    
     // Try all fallback services in parallel with timeout
     const promises = [
-      this.translateViaLibreTranslate(text, fromLanguage, toLanguage).catch(e => ({ error: e })),
-      this.translateViaMyMemory(text, fromLanguage, toLanguage).catch(e => ({ error: e })),
-      this.translateViaGoogleTranslate(text, fromLanguage, toLanguage).catch(e => ({ error: e }))
+      this.translateViaLibreTranslate(text, fromLanguage, toLanguage).catch(e => {
+        console.error('❌ LibreTranslate failed:', e);
+        return { error: e };
+      }),
+      this.translateViaMyMemory(text, fromLanguage, toLanguage).catch(e => {
+        console.error('❌ MyMemory failed:', e);
+        return { error: e };
+      }),
+      this.translateViaGoogleTranslate(text, fromLanguage, toLanguage).catch(e => {
+        console.error('❌ Google Translate failed:', e);
+        return { error: e };
+      })
     ];
 
     try {
