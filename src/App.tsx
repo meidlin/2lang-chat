@@ -33,7 +33,7 @@ function App() {
   const [typingUser, setTypingUser] = useState<'user1' | 'user2' | null>(null);
   const [role, setRole] = useState<'user1' | 'user2' | ''>('');
   const [roomId] = useState<string>('global');
-  const [channelReady, setChannelReady] = useState<boolean>(false);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -65,10 +65,8 @@ function App() {
       }
     });
 
-    channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') setChannelReady(true);
-    });
-    return () => { setChannelReady(false); channel.unsubscribe(); };
+    channel.subscribe();
+    return () => { channel.unsubscribe(); };
   }, [roomId]);
 
   // OpenAI key entry removed; service will use env var if set
@@ -181,45 +179,7 @@ function App() {
           <h1>🌍 Multilingual Chat</h1>
           <p>Choose languages for both users to start chatting</p>
           {/* Room and invite link removed */}
-          <div style={{
-            background: '#f5f6ff',
-            border: '1px solid #e2e6ff',
-            padding: '12px',
-            borderRadius: 12,
-            marginBottom: 16,
-            textAlign: 'left'
-          }}>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8 }}>
-              <strong>OpenAI API key (optional)</strong>
-              {apiKeySaved && (
-                <span style={{ fontSize: 12, color: '#4b5563' }}>
-                  Saved ✓ {apiKey.length > 8 ? `…${apiKey.slice(-4)}` : ''}
-                </span>
-              )}
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="sk-..."
-                style={{ flex: 1, padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db' }}
-              />
-              <button
-                onClick={() => { localStorage.setItem('openai_api_key', apiKey); setApiKeySaved(!!apiKey); translationService.setApiKey(apiKey); }}
-                style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #c7d2fe', background: '#e0e7ff', cursor: 'pointer' }}
-              >Save</button>
-              {apiKeySaved && (
-                <button
-                  onClick={() => { localStorage.removeItem('openai_api_key'); setApiKey(''); setApiKeySaved(false); translationService.setApiKey(''); }}
-                  style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid #fecaca', background: '#fee2e2', cursor: 'pointer' }}
-                >Clear</button>
-              )}
-            </div>
-            <div style={{ fontSize: 12, color: '#6b7280', marginTop: 6 }}>
-              Without a key, we use public fallback translators which may be inconsistent. A key enables high‑quality GPT translations.
-            </div>
-          </div>
+          {/* OpenAI API key UI removed */}
           
           <div className="language-grid">
             <div className="language-section">
