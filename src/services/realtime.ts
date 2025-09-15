@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || '';
+// Use environment variables if available, otherwise fallback to hardcoded values
+const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || 'https://ywhaabtrozuyyjuzkhqy.supabase.co';
+const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl3aGFhYnRyb3p1eXlqdXpraHF5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTc5MjE0NjcsImV4cCI6MjA3MzQ5NzQ2N30.2I1-PWeOzIcrwhoutptSZ42ixA9Y3BmHVouH0TJxQpg';
 
 console.log('🔧 Realtime service initialization:');
 console.log('🔧 Environment variables:', {
@@ -11,9 +12,11 @@ console.log('🔧 Environment variables:', {
 });
 
 console.log('🔍 Full environment check:');
-console.log('🔍 REACT_APP_SUPABASE_URL:', process.env.REACT_APP_SUPABASE_URL);
-console.log('🔍 REACT_APP_SUPABASE_ANON_KEY:', process.env.REACT_APP_SUPABASE_ANON_KEY ? 'PRESENT' : 'MISSING');
-console.log('🔍 All process.env keys:', Object.keys(process.env));
+console.log('🔍 REACT_APP_SUPABASE_URL from env:', process.env.REACT_APP_SUPABASE_URL);
+console.log('🔍 REACT_APP_SUPABASE_ANON_KEY from env:', process.env.REACT_APP_SUPABASE_ANON_KEY ? 'PRESENT' : 'MISSING');
+console.log('🔍 Using fallback credentials:', !process.env.REACT_APP_SUPABASE_URL);
+console.log('🔍 Final supabaseUrl:', supabaseUrl);
+console.log('🔍 Final supabaseAnonKey:', supabaseAnonKey ? 'PRESENT' : 'MISSING');
 
 if (supabaseUrl && supabaseAnonKey) {
   console.log('✅ Creating Supabase client with URL:', supabaseUrl);
