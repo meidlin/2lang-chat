@@ -105,21 +105,20 @@ export function generateClientId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
+// In-memory client ID storage (no localStorage/sessionStorage)
+let currentClientId: string | null = null;
+
 export function getOrCreateClientId(): string {
   try {
-    // Check if we already have a client ID for this session
-    let clientId = sessionStorage.getItem('client_id');
-    
-    if (!clientId) {
+    if (!currentClientId) {
       // Generate a new client ID for this session
-      clientId = generateClientId();
-      sessionStorage.setItem('client_id', clientId);
-      console.log('🆕 Generated new client ID:', clientId);
+      currentClientId = generateClientId();
+      console.log('🆕 Generated new client ID:', currentClientId);
     } else {
-      console.log('♻️ Using existing client ID:', clientId);
+      console.log('♻️ Using existing client ID:', currentClientId);
     }
     
-    return clientId;
+    return currentClientId;
   } catch (error) {
     console.error('❌ Error with client ID:', error);
     return generateClientId();

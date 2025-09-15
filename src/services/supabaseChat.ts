@@ -22,6 +22,8 @@ class SupabaseChatService {
   private messageListeners: Set<(messages: SharedMessage[]) => void> = new Set();
   private presenceListeners: Set<(presence: SharedPresence[]) => void> = new Set();
   private presenceCleanupInterval: NodeJS.Timeout | null = null;
+  private messages: SharedMessage[] = [];
+  private presence: SharedPresence[] = [];
 
   constructor() {
     this.startPresenceCleanup();
@@ -64,8 +66,8 @@ class SupabaseChatService {
     });
     
     if (!supabase) {
-      console.warn('⚠️ Supabase not available - using local storage fallback');
-      // Generate a local ID and store in localStorage as fallback
+      console.warn('⚠️ Supabase not available - using in-memory fallback');
+      // Generate a local ID and store in memory
       const localId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
       const localMessage = {
         ...message,
@@ -73,13 +75,11 @@ class SupabaseChatService {
         timestamp: Date.now()
       };
       
-      // Store in localStorage
-      const existingMessages = JSON.parse(localStorage.getItem('fallback_messages') || '[]');
-      existingMessages.push(localMessage);
-      localStorage.setItem('fallback_messages', JSON.stringify(existingMessages));
+      // Store in memory
+      this.messages.push(localMessage);
       
       // Notify listeners
-      this.messageListeners.forEach(listener => listener(existingMessages));
+      this.messageListeners.forEach(listener => listener([...this.messages]));
       
       return localId;
     }
@@ -137,9 +137,8 @@ class SupabaseChatService {
 
   async getMessages(): Promise<SharedMessage[]> {
     if (!supabase) {
-      console.warn('⚠️ Supabase not available - using local storage fallback');
-      const localMessages = JSON.parse(localStorage.getItem('fallback_messages') || '[]');
-      return localMessages;
+      console.warn('⚠️ Supabase not available - using in-memory fallback');
+      return [...this.messages];
     }
 
     try {
@@ -168,21 +167,18 @@ class SupabaseChatService {
   // Presence methods
   async updatePresence(clientId: string, name: string, role: 'user1' | 'user2' | 'spectator') {
     if (!supabase) {
-      console.warn('⚠️ Supabase not available - using local storage fallback for presence');
-      const localPresence = JSON.parse(localStorage.getItem('fallback_presence') || '[]');
-      const existingIndex = localPresence.findIndex((p: any) => p.clientId === clientId);
+      console.warn('⚠️ Supabase not available - using in-memory fallback for presence');
+      const existingIndex = this.presence.findIndex(p => p.clientId === clientId);
       const presenceData = { clientId, name, role, lastSeen: Date.now() };
       
       if (existingIndex >= 0) {
-        localPresence[existingIndex] = presenceData;
+        this.presence[existingIndex] = presenceData;
       } else {
-        localPresence.push(presenceData);
+        this.presence.push(presenceData);
       }
       
-      localStorage.setItem('fallback_presence', JSON.stringify(localPresence));
-      
       // Notify listeners
-      this.presenceListeners.forEach(listener => listener(localPresence));
+      this.presenceListeners.forEach(listener => listener([...this.presence]));
       return;
     }
 
@@ -212,9 +208,8 @@ class SupabaseChatService {
 
   async getPresence(): Promise<SharedPresence[]> {
     if (!supabase) {
-      console.warn('⚠️ Supabase not available - using local storage fallback for presence');
-      const localPresence = JSON.parse(localStorage.getItem('fallback_presence') || '[]');
-      return localPresence;
+      console.warn('⚠️ Supabase not available - using in-memory fallback for presence');
+      return [...this.presence];
     }
 
     try {

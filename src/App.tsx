@@ -39,10 +39,7 @@ function AppContent() {
   const [role, setRole] = useState<'user1' | 'user2' | 'spectator' | ''>('');
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   
-  const [displayName, setDisplayName] = useState<string>(() => {
-    const clientId = getOrCreateClientId();
-    return sessionStorage.getItem(`display_name_${clientId}`) || '';
-  });
+  const [displayName, setDisplayName] = useState<string>('');
   const [pendingName, setPendingName] = useState<string>(() => displayName || '');
   const [user1OnlineName, setUser1OnlineName] = useState<string | null>(null);
   const [user2OnlineName, setUser2OnlineName] = useState<string | null>(null);
@@ -318,8 +315,6 @@ function AppContent() {
               onClick={() => { 
                 const n = pendingName.trim(); 
                 if (n) { 
-                  const clientId = getOrCreateClientId();
-                  sessionStorage.setItem(`display_name_${clientId}`, n); 
                   setDisplayName(n); 
                 } 
               }}
