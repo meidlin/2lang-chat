@@ -35,6 +35,7 @@ function App() {
   const [roomId] = useState<string>('global');
   
   const [displayName, setDisplayName] = useState<string>(() => localStorage.getItem('display_name') || '');
+  const [pendingName, setPendingName] = useState<string>(() => displayName || '');
   const [user1OnlineName, setUser1OnlineName] = useState<string | null>(null);
   const [user2OnlineName, setUser2OnlineName] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -213,13 +214,13 @@ function App() {
             <input
               type="text"
               placeholder="Your name"
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
+              value={pendingName}
+              onChange={(e) => setPendingName(e.target.value)}
               style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', width: '70%' }}
             />
             <button
               className="start-chat-btn"
-              onClick={() => { if (displayName.trim()) { localStorage.setItem('display_name', displayName.trim()); setDisplayName(displayName.trim()); } }}
+              onClick={() => { const n = pendingName.trim(); if (n) { localStorage.setItem('display_name', n); setDisplayName(n); } }}
             >Continue</button>
           </div>
         </div>
