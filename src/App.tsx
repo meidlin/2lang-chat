@@ -340,9 +340,6 @@ function AppContent() {
     );
   };
 
-  const switchSender = () => {
-    setCurrentSender(prev => prev === 'user1' ? 'user2' : 'user1');
-  };
 
   const goBackToLanguageSelection = () => {
     supabaseChatService.clearChat();
@@ -539,9 +536,6 @@ function AppContent() {
               alert('Failed to clear. Check console for details.');
             }
           }} aria-label="Clear all users and messages">Clear All</button>
-          <button className="switch-user-btn" onClick={switchSender}>
-            Switch to {currentSender === 'user1' ? 'User 2' : 'User 1'}
-          </button>
         </div>
       </div>
 
