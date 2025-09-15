@@ -36,7 +36,7 @@ function App() {
   
   const [displayName, setDisplayName] = useState<string>(() => {
     const clientId = getOrCreateClientId();
-    return localStorage.getItem(`display_name_${clientId}`) || '';
+    return sessionStorage.getItem(`display_name_${clientId}`) || '';
   });
   const [pendingName, setPendingName] = useState<string>(() => displayName || '');
   const [user1OnlineName, setUser1OnlineName] = useState<string | null>(null);
@@ -58,8 +58,8 @@ function App() {
       console.log('Supabase or roomId missing:', { supabase: !!supabase, roomId });
       // Fallback: assign role based on clientId for offline mode
       const clientId = getOrCreateClientId();
-      // Use a more unique fallback - check if this is the first time this clientId is seen
-      const storedRole = localStorage.getItem(`role_${clientId}`);
+      // Use sessionStorage for role - each new tab gets a fresh role
+      const storedRole = sessionStorage.getItem(`role_${clientId}`);
       if (storedRole) {
         setRole(storedRole as 'user1' | 'user2' | 'spectator');
       } else {
@@ -67,7 +67,7 @@ function App() {
         const isFirstUser = Date.now() % 2 === 0;
         const role = isFirstUser ? 'user1' : 'user2';
         setRole(role);
-        localStorage.setItem(`role_${clientId}`, role);
+        sessionStorage.setItem(`role_${clientId}`, role);
       }
       setTotalUsers(1);
       setPresenceDebug(`Offline mode: ${storedRole || 'new user'} (clientId: ${clientId})`);
@@ -131,28 +131,28 @@ function App() {
       } else if (status === 'CHANNEL_ERROR') {
         console.error('Channel error:', err);
         // Fallback: assign role based on clientId for offline mode
-        const storedRole = localStorage.getItem(`role_${clientId}`);
+        const storedRole = sessionStorage.getItem(`role_${clientId}`);
         if (storedRole) {
           setRole(storedRole as 'user1' | 'user2' | 'spectator');
         } else {
           const isFirstUser = Date.now() % 2 === 0;
           const role = isFirstUser ? 'user1' : 'user2';
           setRole(role);
-          localStorage.setItem(`role_${clientId}`, role);
+          sessionStorage.setItem(`role_${clientId}`, role);
         }
         setTotalUsers(1);
         setPresenceDebug(`Fallback mode: ${storedRole || 'new user'} (clientId: ${clientId})`);
       } else if (status === 'TIMED_OUT') {
         console.error('Channel timed out');
         // Fallback: assign role based on clientId for offline mode
-        const storedRole = localStorage.getItem(`role_${clientId}`);
+        const storedRole = sessionStorage.getItem(`role_${clientId}`);
         if (storedRole) {
           setRole(storedRole as 'user1' | 'user2' | 'spectator');
         } else {
           const isFirstUser = Date.now() % 2 === 0;
           const role = isFirstUser ? 'user1' : 'user2';
           setRole(role);
-          localStorage.setItem(`role_${clientId}`, role);
+          sessionStorage.setItem(`role_${clientId}`, role);
         }
         setTotalUsers(1);
         setPresenceDebug(`Fallback mode: ${storedRole || 'new user'} (clientId: ${clientId})`);
@@ -301,7 +301,7 @@ function App() {
                 const n = pendingName.trim(); 
                 if (n) { 
                   const clientId = getOrCreateClientId();
-                  localStorage.setItem(`display_name_${clientId}`, n); 
+                  sessionStorage.setItem(`display_name_${clientId}`, n); 
                   setDisplayName(n); 
                 } 
               }}

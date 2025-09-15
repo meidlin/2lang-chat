@@ -25,10 +25,12 @@ export function generateClientId(): string {
 
 export function getOrCreateClientId(): string {
   try {
-    const existing = localStorage.getItem('client_id');
-    if (existing) return existing;
+    // Always generate a new client ID for each session
+    // This ensures each new tab/incognito window = new user
     const created = generateClientId();
-    localStorage.setItem('client_id', created);
+    // Store temporarily in sessionStorage instead of localStorage
+    // so it persists during the session but not across browser restarts
+    sessionStorage.setItem('client_id', created);
     return created;
   } catch {
     return generateClientId();
