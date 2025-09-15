@@ -4,6 +4,7 @@ import { translationService } from './services/translationService';
 import { getOrCreateClientId } from './services/realtime';
 import { supabaseChatService } from './services/supabaseChat';
 import EnvDebug from './EnvDebug';
+import ErrorBoundary from './ErrorBoundary';
 
 interface Message {
   id: string;
@@ -26,7 +27,7 @@ const LANGUAGES: Language[] = [
   { code: 'ja', name: '日本語', flag: '🇯🇵' },
 ];
 
-function App() {
+function AppContent() {
   console.log('🚀 App component is starting to render...');
   const [user1Language, setUser1Language] = useState<string>('');
   const [user2Language, setUser2Language] = useState<string>('');
@@ -533,6 +534,14 @@ function App() {
         </button>
       </div>
     </div>
+  );
+}
+
+function App() {
+  return (
+    <ErrorBoundary>
+      <AppContent />
+    </ErrorBoundary>
   );
 }
 

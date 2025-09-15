@@ -44,9 +44,21 @@ if (supabaseUrl && supabaseAnonKey) {
   });
 }
 
-export const supabase = (supabaseUrl && supabaseAnonKey)
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
+// Create Supabase client with error handling
+let supabase = null;
+try {
+  if (supabaseUrl && supabaseAnonKey) {
+    supabase = createClient(supabaseUrl, supabaseAnonKey);
+    console.log('✅ Supabase client created successfully');
+  } else {
+    console.log('⚠️ Supabase credentials missing, using fallback mode');
+  }
+} catch (error) {
+  console.error('❌ Error creating Supabase client:', error);
+  supabase = null;
+}
+
+export { supabase };
 
 console.log('🔧 Supabase client created:', !!supabase);
 
