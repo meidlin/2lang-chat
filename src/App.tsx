@@ -727,6 +727,10 @@ function AppContent() {
           )}
 
           {/* Waiting/Connection Status */}
+          {(() => {
+            console.log('🎯 Waiting state render:', { role, user2OnlineName, condition: role === 'user1' && !user2OnlineName });
+            return null;
+          })()}
           <div style={{ 
             textAlign: 'center', 
             marginBottom: '20px', 
@@ -736,9 +740,18 @@ function AppContent() {
             borderRadius: '10px',
             color: '#856404'
           }}>
-            {/* Debug info */}
-            <div style={{ fontSize: '12px', color: '#666', marginBottom: '10px' }}>
-              DEBUG: role={role}, user2OnlineName={user2OnlineName ? 'true' : 'false'}, condition={role === 'user1' && !user2OnlineName ? 'true' : 'false'}
+            {/* Debug info - more visible */}
+            <div style={{ 
+              fontSize: '14px', 
+              color: '#ff0000', 
+              marginBottom: '15px', 
+              padding: '10px', 
+              background: '#ffffcc', 
+              border: '2px solid #ff0000', 
+              borderRadius: '5px',
+              fontWeight: 'bold'
+            }}>
+              🔍 DEBUG: role={role}, user2OnlineName={user2OnlineName ? 'true' : 'false'}, condition={role === 'user1' && !user2OnlineName ? 'true' : 'false'}
             </div>
             {role === 'user1' && !user2OnlineName && (
               <div>
