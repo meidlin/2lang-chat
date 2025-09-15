@@ -1,6 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+// Simplified version - cross-tab code removed
+
 // Use environment variables if available, otherwise fallback to hardcoded values
 // Try both REACT_APP_ prefixed and standard Supabase variable names
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || process.env.SUPABASE_URL || 'https://ywhaabtrozuyyjuzkhqy.supabase.co';
