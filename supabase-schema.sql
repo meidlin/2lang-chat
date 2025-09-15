@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS presence (
 
 -- Create typing indicators table
 CREATE TABLE IF NOT EXISTS typing_indicators (
-  user VARCHAR(10) PRIMARY KEY CHECK (user IN ('user1', 'user2')),
+  "user" VARCHAR(10) PRIMARY KEY CHECK ("user" IN ('user1', 'user2')),
   is_typing BOOLEAN NOT NULL DEFAULT FALSE,
   timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

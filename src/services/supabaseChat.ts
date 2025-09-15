@@ -357,11 +357,11 @@ class SupabaseChatService {
       const { error } = await supabase
         .from('typing_indicators')
         .upsert({
-          user,
+          "user": user,
           is_typing: isTyping,
           timestamp: new Date().toISOString()
         }, {
-          onConflict: 'user'
+          onConflict: '"user"'
         });
 
       if (error) {
@@ -398,7 +398,7 @@ class SupabaseChatService {
       if (!data) return null;
 
       return {
-        user: data.user,
+        user: data["user"],
         isTyping: data.is_typing,
         timestamp: new Date(data.timestamp).getTime()
       };
