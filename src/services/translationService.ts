@@ -19,26 +19,34 @@ export class TranslationService {
     fromLanguage: string, 
     toLanguage: string
   ): Promise<TranslationResponse> {
+    console.log('🌐 TranslationService.translateText called:', { text, fromLanguage, toLanguage });
     const from = fromLanguage.toLowerCase();
     const to = toLanguage.toLowerCase();
+    
     if (!this.apiKey) {
+      console.log('⚠️ No OpenAI API key, trying fallback services...');
       // Try public translation fallbacks when no OpenAI key is set
       try {
+        console.log('🔄 Trying LibreTranslate...');
         const lt = await this.translateViaLibreTranslate(text, from, to);
         if (this.isTargetLanguageSatisfied(lt, to)) {
+          console.log('✅ LibreTranslate success:', lt);
           return { translatedText: lt };
         }
       } catch (e1) {
-        // continue
+        console.log('❌ LibreTranslate failed:', e1);
       }
       try {
+        console.log('🔄 Trying MyMemory...');
         const mm = await this.translateViaMyMemory(text, from, to);
         if (this.isTargetLanguageSatisfied(mm, to)) {
+          console.log('✅ MyMemory success:', mm);
           return { translatedText: mm };
         }
       } catch (e2) {
-        // continue
+        console.log('❌ MyMemory failed:', e2);
       }
+      console.log('⚠️ All fallbacks failed, using mock translation');
       return this.getMockTranslation(text, from, to);
     }
 
@@ -168,7 +176,9 @@ export class TranslationService {
 
   private getMockTranslation(text: string, fromLanguage: string, toLanguage: string): TranslationResponse {
     // Generic fallback that echoes the original when no API is available
-    return { translatedText: `[${fromLanguage}→${toLanguage}] ${text}` };
+    const mockTranslation = `[${fromLanguage}→${toLanguage}] ${text}`;
+    console.log('🎭 Using mock translation:', mockTranslation);
+    return { translatedText: mockTranslation };
   }
 
   private isTargetLanguageSatisfied(text: string, target: string): boolean {
