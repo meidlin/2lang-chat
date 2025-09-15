@@ -60,6 +60,9 @@ function App() {
       const clientId = getOrCreateClientId();
       console.log('🔧 Initializing chat for clientId:', clientId);
       
+      // Clean up old presence first
+      await supabaseChatService.cleanupOldPresence();
+      
       // Assign role based on existing presence or create new one
       const presence = await supabaseChatService.getPresence();
       console.log('👥 Current presence:', presence);
@@ -92,6 +95,13 @@ function App() {
         // Update presence immediately with the new role
         await supabaseChatService.updatePresence(clientId, displayName || 'Anonymous', newRole);
         console.log('✅ Presence updated with role:', newRole);
+        
+        // Wait a moment for the presence to propagate
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // Refresh presence to ensure it's updated
+        const updatedPresence = await supabaseChatService.getPresence();
+        console.log('🔄 Refreshed presence after role assignment:', updatedPresence);
       }
     };
 

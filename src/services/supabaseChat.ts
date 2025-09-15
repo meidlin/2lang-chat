@@ -34,7 +34,7 @@ class SupabaseChatService {
     }, 120000);
   }
 
-  private async cleanupOldPresence() {
+  async cleanupOldPresence() {
     if (!supabase) return;
     
     try {
@@ -150,6 +150,7 @@ class SupabaseChatService {
     if (!supabase) return;
 
     try {
+      console.log('📝 Updating presence:', { clientId, name, role });
       const { error } = await supabase
         .from('presence')
         .upsert({
@@ -161,9 +162,14 @@ class SupabaseChatService {
           onConflict: 'client_id'
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Error updating presence:', error);
+        throw error;
+      }
+      
+      console.log('✅ Presence updated successfully');
     } catch (error) {
-      console.error('Error updating presence:', error);
+      console.error('💥 Error updating presence:', error);
     }
   }
 
