@@ -15,6 +15,7 @@ export interface SharedPresence {
   clientId: string;
   name: string;
   role: 'user1' | 'user2' | 'spectator';
+  language?: string;
   lastSeen: number;
 }
 
@@ -131,11 +132,12 @@ class CrossTabService {
   }
 
   // Presence methods
-  updatePresence(clientId: string, name: string, role: 'user1' | 'user2' | 'spectator') {
+  updatePresence(clientId: string, name: string, role: 'user1' | 'user2' | 'spectator', language?: string) {
     const presenceData: SharedPresence = {
       clientId,
       name,
       role,
+      language,
       lastSeen: Date.now(),
     };
 

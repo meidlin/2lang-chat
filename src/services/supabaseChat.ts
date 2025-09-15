@@ -16,6 +16,7 @@ export interface SharedPresence {
   clientId: string;
   name: string;
   role: 'user1' | 'user2' | 'spectator';
+  language?: string;
   lastSeen: number;
 }
 
@@ -155,21 +156,22 @@ class SupabaseChatService {
   }
 
   // Presence methods
-  async updatePresence(clientId: string, name: string, role: 'user1' | 'user2' | 'spectator') {
+  async updatePresence(clientId: string, name: string, role: 'user1' | 'user2' | 'spectator', language?: string) {
     if (!supabase) {
       console.warn('⚠️ Supabase not available - using cross-tab communication for presence');
-      crossTabService.updatePresence(clientId, name, role);
+      crossTabService.updatePresence(clientId, name, role, language);
       return;
     }
 
     try {
-      console.log('📝 Updating presence:', { clientId, name, role });
+      console.log('📝 Updating presence:', { clientId, name, role, language });
       const { error } = await supabase
         .from('presence')
         .upsert({
           client_id: clientId,
           name,
           role,
+          language,
           last_seen: new Date().toISOString(),
         }, {
           onConflict: 'client_id'

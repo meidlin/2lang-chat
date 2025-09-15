@@ -92,7 +92,7 @@ function AppContent() {
         setRole(newRole);
         
         // Update presence immediately with the new role
-        await supabaseChatService.updatePresence(clientId, displayName || 'Anonymous', newRole);
+        await supabaseChatService.updatePresence(clientId, displayName || 'Anonymous', newRole, myLanguage);
         console.log('✅ Presence updated with role:', newRole);
         
         // Wait a moment for the presence to propagate
@@ -126,6 +126,10 @@ function AppContent() {
       setUser1OnlineName(user1?.name || null);
       setUser2OnlineName(user2?.name || null);
       
+      // Extract language information from presence data
+      setUser1Language(user1?.language || '');
+      setUser2Language(user2?.language || '');
+      
       setPresenceDebug(`Supabase real-time: ${presence.length} users online`);
       setConnectionStatus('connected');
     });
@@ -140,8 +144,8 @@ function AppContent() {
   useEffect(() => {
     if (!displayName) return;
     const clientId = getOrCreateClientId();
-    supabaseChatService.updatePresence(clientId, displayName, role as 'user1' | 'user2' | 'spectator');
-  }, [displayName, role]);
+    supabaseChatService.updatePresence(clientId, displayName, role as 'user1' | 'user2' | 'spectator', myLanguage);
+  }, [displayName, role, myLanguage]);
 
   // Sync my language choice with the appropriate user language
   useEffect(() => {

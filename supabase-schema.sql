@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS presence (
   client_id VARCHAR(100) UNIQUE NOT NULL,
   name VARCHAR(100) NOT NULL,
   role VARCHAR(20) NOT NULL CHECK (role IN ('user1', 'user2', 'spectator')),
+  language VARCHAR(10),
   last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
