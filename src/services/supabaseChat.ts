@@ -1,6 +1,5 @@
 // Supabase-based real-time chat service
 import { supabase } from './realtime';
-import { crossTabService } from './crossTabService';
 
 export interface SharedMessage {
   id: string;
@@ -24,8 +23,6 @@ class SupabaseChatService {
   private messageListeners: Set<(messages: SharedMessage[]) => void> = new Set();
   private presenceListeners: Set<(presence: SharedPresence[]) => void> = new Set();
   private presenceCleanupInterval: NodeJS.Timeout | null = null;
-  private messages: SharedMessage[] = [];
-  private presence: SharedPresence[] = [];
 
   constructor() {
     this.startPresenceCleanup();
@@ -68,8 +65,7 @@ class SupabaseChatService {
     });
     
     if (!supabase) {
-      console.warn('⚠️ Supabase not available - using cross-tab communication');
-      return crossTabService.addMessage(message);
+      throw new Error('Supabase not available - cannot add message');
     }
 
     try {
@@ -106,8 +102,7 @@ class SupabaseChatService {
 
   async updateMessage(messageId: string, updates: Partial<SharedMessage>) {
     if (!supabase) {
-      crossTabService.updateMessage(messageId, updates);
-      return;
+      throw new Error('Supabase not available - cannot update message');
     }
 
     try {
@@ -128,8 +123,7 @@ class SupabaseChatService {
 
   async getMessages(): Promise<SharedMessage[]> {
     if (!supabase) {
-      console.warn('⚠️ Supabase not available - using cross-tab communication');
-      return crossTabService.getMessages();
+      throw new Error('Supabase not available - cannot get messages');
     }
 
     try {
@@ -158,9 +152,7 @@ class SupabaseChatService {
   // Presence methods
   async updatePresence(clientId: string, name: string, role: 'user1' | 'user2' | 'spectator', language?: string) {
     if (!supabase) {
-      console.warn('⚠️ Supabase not available - using cross-tab communication for presence');
-      crossTabService.updatePresence(clientId, name, role, language);
-      return;
+      throw new Error('Supabase not available - cannot update presence');
     }
 
     try {
@@ -190,9 +182,7 @@ class SupabaseChatService {
 
   async removePresence(clientId: string) {
     if (!supabase) {
-      console.warn('⚠️ Supabase not available - using cross-tab communication for presence removal');
-      crossTabService.removePresence(clientId);
-      return;
+      throw new Error('Supabase not available - cannot remove presence');
     }
 
     try {
@@ -215,8 +205,7 @@ class SupabaseChatService {
 
   async getPresence(): Promise<SharedPresence[]> {
     if (!supabase) {
-      console.warn('⚠️ Supabase not available - using cross-tab communication for presence');
-      return crossTabService.getPresence();
+      throw new Error('Supabase not available - cannot get presence');
     }
 
     try {
@@ -248,8 +237,7 @@ class SupabaseChatService {
     this.getMessages().then(callback);
 
     if (!supabase) {
-      console.warn('Supabase not initialized, using cross-tab communication');
-      return crossTabService.subscribeToMessages(callback);
+      throw new Error('Supabase not available - cannot subscribe to messages');
     }
 
     // Set up real-time subscription
@@ -280,8 +268,7 @@ class SupabaseChatService {
     this.getPresence().then(callback);
 
     if (!supabase) {
-      console.warn('Supabase not initialized, using cross-tab communication');
-      return crossTabService.subscribeToPresence(callback);
+      throw new Error('Supabase not available - cannot subscribe to presence');
     }
 
     // Set up real-time subscription
@@ -307,8 +294,7 @@ class SupabaseChatService {
 
   async clearChat() {
     if (!supabase) {
-      crossTabService.clearChat();
-      return;
+      throw new Error('Supabase not available - cannot clear chat');
     }
 
     try {
