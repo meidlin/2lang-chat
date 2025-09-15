@@ -285,11 +285,9 @@ function AppContent() {
         const targetLanguage = currentSender === 'user1' ? user2Language : user1Language;
         const sourceLanguage = myLanguage;
 
-        const receivingUser = currentSender === 'user1' ? 'user2' : 'user1';
-        
-        // Set typing indicator for receiving user
-        setTypingUser(receivingUser);
-        console.log('⏳ Setting typing indicator for:', receivingUser);
+        // Set typing indicator to show the SENDER is typing (for the receiving user to see)
+        setTypingUser(currentSender);
+        console.log('⏳ Setting typing indicator for sender:', currentSender);
 
         // Add a minimum typing duration for better UX
         const minTypingDuration = 1000; // 1 second minimum
