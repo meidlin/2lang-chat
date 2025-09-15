@@ -34,6 +34,7 @@ function App() {
   const [role, setRole] = useState<'user1' | 'user2' | 'spectator' | ''>('');
   const [roomId] = useState<string>('global');
   
+  const [displayName, setDisplayName] = useState<string>(() => localStorage.getItem('display_name') || '');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -78,11 +79,11 @@ function App() {
 
     channel.subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
-        await channel.track({ clientId });
+        await channel.track({ clientId, name: displayName || 'Anonymous' });
       }
     });
     return () => { channel.unsubscribe(); };
-  }, [roomId]);
+  }, [roomId, displayName]);
 
   // OpenAI key entry removed; service will use env var if set
 
@@ -190,12 +191,37 @@ function App() {
   const otherUser = role === 'user1' ? 'user2' : role === 'user2' ? 'user1' : null;
   const canSend = role === 'user1' || role === 'user2';
 
+  // Onboarding: ask for display name first
+  if (!displayName) {
+    return (
+      <div className="language-selection">
+        <div className="language-container">
+          <h1>🌍 Multilingual Chat</h1>
+          <p>Welcome! What should we call you?</p>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+            <input
+              type="text"
+              placeholder="Your name"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', width: '70%' }}
+            />
+            <button
+              className="start-chat-btn"
+              onClick={() => { if (displayName.trim()) { localStorage.setItem('display_name', displayName.trim()); setDisplayName(displayName.trim()); } }}
+            >Continue</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!user1Language || !user2Language || !role) {
     return (
       <div className="language-selection">
         <div className="language-container">
           <h1>🌍 Multilingual Chat</h1>
-          <p>Your role: <strong>{role || 'assigning…'}</strong></p>
+          <p>Your role: <strong>{role || 'assigning…'}</strong> • Name: <strong>{displayName}</strong></p>
           <p>Choose languages for both users to start chatting</p>
           {/* Room and invite link removed */}
           {/* OpenAI API key UI removed */}
