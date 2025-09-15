@@ -690,9 +690,17 @@ function AppContent() {
   }
 
   // Debug: Log the condition values
-  console.log('🔍 Render condition check:', { myLanguage, role, showRoomSelection, condition: !myLanguage || !role });
+  console.log('🔍 Render condition check:', { 
+    myLanguage: `"${myLanguage}"`, 
+    role: `"${role}"`, 
+    showRoomSelection, 
+    condition: !myLanguage || !role 
+  });
+  
+  console.log('✅ RENDERING CHAT INTERFACE - myLanguage:', myLanguage, 'role:', role);
   
   if (!myLanguage || !role) {
+    console.log('🚫 RENDERING LANGUAGE SELECTION SCREEN');
     return (
       <div className="language-selection">
         <div className="language-container">
