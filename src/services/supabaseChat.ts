@@ -7,6 +7,8 @@ export interface SharedMessage {
   translatedText?: string;
   sender: 'user1' | 'user2';
   senderName: string;
+  senderId: string;
+  roomId: string;
   timestamp: number;
   showOriginal?: boolean;
   isTranslating?: boolean;
@@ -14,10 +16,19 @@ export interface SharedMessage {
 
 export interface SharedPresence {
   clientId: string;
+  userId: string;
   name: string;
   role: 'user1' | 'user2' | 'spectator';
   language?: string;
+  roomId: string;
   lastSeen: number;
+}
+
+export interface ChatRoom {
+  id: string;
+  name: string;
+  createdAt: number;
+  userCount: number;
 }
 
 export interface TypingIndicator {
@@ -26,45 +37,120 @@ export interface TypingIndicator {
   timestamp: number;
 }
 
+// Utility function to generate unique user IDs
+function generateUserId(): string {
+  return 'user_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+}
+
+// Utility function to generate unique room IDs
+function generateRoomId(): string {
+  return 'room_' + Math.random().toString(36).substr(2, 9) + '_' + Date.now();
+}
+
 class SupabaseChatService {
   private messageListeners: Set<(messages: SharedMessage[]) => void> = new Set();
   private presenceListeners: Set<(presence: SharedPresence[]) => void> = new Set();
   private typingListeners: Set<(typing: TypingIndicator | null) => void> = new Set();
-  private presenceCleanupInterval: NodeJS.Timeout | null = null;
-  private heartbeatInterval: NodeJS.Timeout | null = null;
+  private roomListeners: Set<(rooms: ChatRoom[]) => void> = new Set();
   private currentClientId: string | null = null;
+  private currentUserId: string | null = null;
+  private currentRoomId: string | null = null;
   private currentUserInfo: { name: string; role: 'user1' | 'user2' | 'spectator'; language?: string } | null = null;
 
   constructor() {
-    this.startPresenceCleanup();
-    this.startHeartbeat();
+    // No automatic cleanup - users stay in presence indefinitely
   }
 
-  private startPresenceCleanup() {
-    // Clean up old presence records every 5 minutes (less aggressive)
-    this.presenceCleanupInterval = setInterval(() => {
-      this.cleanupOldPresence();
-    }, 5 * 60 * 1000); // 5 minutes
-  }
 
-  async cleanupOldPresence() {
-    if (!supabase) return;
-    
+  // Room management methods
+  async createRoom(name: string): Promise<string> {
+    if (!supabase) {
+      throw new Error('Supabase not available - cannot create room');
+    }
+
+    const roomId = generateRoomId();
     try {
-      console.log('🧹 Cleaning up old presence records...');
-      // Only clean up users who haven't been seen in 10 minutes (much more reasonable)
+      console.log('🏠 Creating room:', { roomId, name });
+      const { error } = await supabase
+        .from('chat_rooms')
+        .insert({
+          id: roomId,
+          name,
+          created_at: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('❌ Error creating room:', error);
+        throw error;
+      }
+      
+      console.log('✅ Room created successfully:', roomId);
+      return roomId;
+    } catch (error) {
+      console.error('💥 Error creating room:', error);
+      throw error;
+    }
+  }
+
+  async getRooms(): Promise<ChatRoom[]> {
+    if (!supabase) {
+      throw new Error('Supabase not available - cannot get rooms');
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('chat_rooms')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      return data.map(room => ({
+        id: room.id,
+        name: room.name,
+        createdAt: new Date(room.created_at).getTime(),
+        userCount: 0 // Will be calculated separately
+      }));
+    } catch (error) {
+      console.error('Error fetching rooms:', error);
+      return [];
+    }
+  }
+
+  async joinRoom(roomId: string, userId: string, name: string, role: 'user1' | 'user2' | 'spectator', language?: string): Promise<void> {
+    if (!supabase) {
+      throw new Error('Supabase not available - cannot join room');
+    }
+
+    this.currentRoomId = roomId;
+    this.currentUserId = userId;
+    this.currentUserInfo = { name, role, language };
+
+    try {
+      console.log('🚪 Joining room:', { roomId, userId, name, role, language });
       const { error } = await supabase
         .from('presence')
-        .delete()
-        .lt('last_seen', new Date(Date.now() - 10 * 60 * 1000).toISOString());
-      
+        .upsert({
+          client_id: this.currentClientId,
+          user_id: userId,
+          name,
+          role,
+          language,
+          room_id: roomId,
+          last_seen: new Date().toISOString()
+        }, {
+          onConflict: 'client_id'
+        });
+
       if (error) {
-        console.error('❌ Error cleaning up old presence:', error);
-      } else {
-        console.log('✅ Old presence records cleaned up');
+        console.error('❌ Error joining room:', error);
+        throw error;
       }
+      
+      console.log('✅ Joined room successfully');
     } catch (error) {
-      console.error('❌ Error cleaning up old presence:', error);
+      console.error('💥 Error joining room:', error);
+      throw error;
     }
   }
 
@@ -452,38 +538,7 @@ class SupabaseChatService {
     };
   }
 
-  private startHeartbeat() {
-    // Send heartbeat every 2 minutes to keep user active
-    this.heartbeatInterval = setInterval(() => {
-      this.sendHeartbeat();
-    }, 2 * 60 * 1000); // 2 minutes
-  }
-
-  private async sendHeartbeat() {
-    if (!this.currentClientId || !this.currentUserInfo) {
-      return; // No active user
-    }
-
-    try {
-      console.log('💓 Sending heartbeat...');
-      await this.updatePresence(
-        this.currentClientId,
-        this.currentUserInfo.name,
-        this.currentUserInfo.role,
-        this.currentUserInfo.language
-      );
-    } catch (error) {
-      console.error('❌ Heartbeat failed:', error);
-    }
-  }
-
   destroy() {
-    if (this.presenceCleanupInterval) {
-      clearInterval(this.presenceCleanupInterval);
-    }
-    if (this.heartbeatInterval) {
-      clearInterval(this.heartbeatInterval);
-    }
     this.messageListeners.clear();
     this.presenceListeners.clear();
     this.typingListeners.clear();

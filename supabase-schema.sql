@@ -4,6 +4,13 @@
 -- Enable Row Level Security
 ALTER DATABASE postgres SET "app.jwt_secret" TO 'your-jwt-secret';
 
+-- Create chat rooms table
+CREATE TABLE IF NOT EXISTS chat_rooms (
+  id VARCHAR(50) PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- Create messages table
 CREATE TABLE IF NOT EXISTS messages (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -11,21 +18,27 @@ CREATE TABLE IF NOT EXISTS messages (
   translated_text TEXT,
   sender VARCHAR(10) NOT NULL CHECK (sender IN ('user1', 'user2')),
   sender_name VARCHAR(100) NOT NULL,
+  sender_id VARCHAR(50) NOT NULL,
+  room_id VARCHAR(50) NOT NULL,
   show_original BOOLEAN DEFAULT FALSE,
   is_translating BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  FOREIGN KEY (room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE
 );
 
 -- Create presence table for user tracking
 CREATE TABLE IF NOT EXISTS presence (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   client_id VARCHAR(100) UNIQUE NOT NULL,
+  user_id VARCHAR(50) NOT NULL,
   name VARCHAR(100) NOT NULL,
   role VARCHAR(20) NOT NULL CHECK (role IN ('user1', 'user2', 'spectator')),
   language VARCHAR(10),
+  room_id VARCHAR(50) NOT NULL,
   last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  FOREIGN KEY (room_id) REFERENCES chat_rooms(id) ON DELETE CASCADE
 );
 
 -- Create typing indicators table
@@ -41,11 +54,18 @@ CREATE INDEX IF NOT EXISTS idx_presence_client_id ON presence(client_id);
 CREATE INDEX IF NOT EXISTS idx_presence_last_seen ON presence(last_seen);
 
 -- Enable Row Level Security
+ALTER TABLE chat_rooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE presence ENABLE ROW LEVEL SECURITY;
 ALTER TABLE typing_indicators ENABLE ROW LEVEL SECURITY;
 
 -- Create policies for public access (since this is a public chat app)
+CREATE POLICY "Allow public read access to chat rooms" ON chat_rooms
+  FOR SELECT USING (true);
+
+CREATE POLICY "Allow public insert access to chat rooms" ON chat_rooms
+  FOR INSERT WITH CHECK (true);
+
 CREATE POLICY "Allow public read access to messages" ON messages
   FOR SELECT USING (true);
 
@@ -77,6 +97,7 @@ CREATE POLICY "Allow public update access to typing indicators" ON typing_indica
   FOR UPDATE USING (true);
 
 -- Enable real-time subscriptions
+ALTER PUBLICATION supabase_realtime ADD TABLE chat_rooms;
 ALTER PUBLICATION supabase_realtime ADD TABLE messages;
 ALTER PUBLICATION supabase_realtime ADD TABLE presence;
 ALTER PUBLICATION supabase_realtime ADD TABLE typing_indicators;
