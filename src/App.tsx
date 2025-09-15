@@ -534,11 +534,11 @@ function AppContent() {
         <button className="back-btn" onClick={goBackToLanguageSelection} aria-label="Back to language selection">← Back</button>
         <div className="language-display">
           <span className="user1-lang">
-            {LANGUAGES.find(l => l.code === user1Language)?.flag} User 1
+            {LANGUAGES.find(l => l.code === user1Language)?.flag} {user1OnlineName || 'User 1'}
           </span>
           <span className="separator">↔️</span>
           <span className="user2-lang">
-            {LANGUAGES.find(l => l.code === user2Language)?.flag} User 2
+            {LANGUAGES.find(l => l.code === user2Language)?.flag} {user2OnlineName || 'User 2'}
           </span>
           <span className="user-count">({totalUsers} online)</span>
           <span className={`connection-status ${connectionStatus}`}>
@@ -551,14 +551,26 @@ function AppContent() {
           <button className="refresh-btn" onClick={refreshApp} aria-label="Refresh app">Refresh</button>
           <button className="clear-users-btn" onClick={async () => {
             try {
+              // Clear all presence and messages
               await supabaseChatService.clearAllPresence();
               await supabaseChatService.clearChat();
+              
+              // Reset all state
               setMessages([]);
               setUser1OnlineName(null);
               setUser2OnlineName(null);
               setUser1Language('');
               setUser2Language('');
-              alert('All users and messages cleared!');
+              setTypingIndicator(null);
+              
+              // Reset current user state to force re-onboarding
+              setDisplayName('');
+              setPendingName('');
+              setMyLanguage('');
+              setRole('');
+              setCurrentSender('user1');
+              
+              alert('All users and messages cleared! You can start fresh.');
             } catch (error) {
               console.error('Error clearing users and messages:', error);
               alert('Failed to clear. Check console for details.');
@@ -586,6 +598,16 @@ function AppContent() {
                 {getAvatarForUser(message.sender, message.senderName)}
               </div>
               <div className="message-content">
+                {!isSentByCurrentUser && (
+                  <div className="message-sender-name" style={{ 
+                    fontSize: '12px', 
+                    color: '#666', 
+                    marginBottom: '4px',
+                    fontWeight: '500'
+                  }}>
+                    {message.senderName}
+                  </div>
+                )}
                 {showTranslation ? (
                   <div className="translated-text">
                     {message.translatedText}
