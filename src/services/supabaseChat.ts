@@ -1,5 +1,6 @@
 // Supabase-based real-time chat service
 import { supabase } from './realtime';
+import { crossTabService } from './crossTabService';
 
 export interface SharedMessage {
   id: string;
@@ -66,22 +67,8 @@ class SupabaseChatService {
     });
     
     if (!supabase) {
-      console.warn('⚠️ Supabase not available - using in-memory fallback');
-      // Generate a local ID and store in memory
-      const localId = Date.now().toString() + Math.random().toString(36).substr(2, 9);
-      const localMessage = {
-        ...message,
-        id: localId,
-        timestamp: Date.now()
-      };
-      
-      // Store in memory
-      this.messages.push(localMessage);
-      
-      // Notify listeners
-      this.messageListeners.forEach(listener => listener([...this.messages]));
-      
-      return localId;
+      console.warn('⚠️ Supabase not available - using cross-tab communication');
+      return crossTabService.addMessage(message);
     }
 
     try {
@@ -117,7 +104,10 @@ class SupabaseChatService {
   }
 
   async updateMessage(messageId: string, updates: Partial<SharedMessage>) {
-    if (!supabase) return;
+    if (!supabase) {
+      crossTabService.updateMessage(messageId, updates);
+      return;
+    }
 
     try {
       const updateData: any = {};
@@ -137,8 +127,8 @@ class SupabaseChatService {
 
   async getMessages(): Promise<SharedMessage[]> {
     if (!supabase) {
-      console.warn('⚠️ Supabase not available - using in-memory fallback');
-      return [...this.messages];
+      console.warn('⚠️ Supabase not available - using cross-tab communication');
+      return crossTabService.getMessages();
     }
 
     try {
@@ -167,18 +157,8 @@ class SupabaseChatService {
   // Presence methods
   async updatePresence(clientId: string, name: string, role: 'user1' | 'user2' | 'spectator') {
     if (!supabase) {
-      console.warn('⚠️ Supabase not available - using in-memory fallback for presence');
-      const existingIndex = this.presence.findIndex(p => p.clientId === clientId);
-      const presenceData = { clientId, name, role, lastSeen: Date.now() };
-      
-      if (existingIndex >= 0) {
-        this.presence[existingIndex] = presenceData;
-      } else {
-        this.presence.push(presenceData);
-      }
-      
-      // Notify listeners
-      this.presenceListeners.forEach(listener => listener([...this.presence]));
+      console.warn('⚠️ Supabase not available - using cross-tab communication for presence');
+      crossTabService.updatePresence(clientId, name, role);
       return;
     }
 
@@ -208,8 +188,8 @@ class SupabaseChatService {
 
   async getPresence(): Promise<SharedPresence[]> {
     if (!supabase) {
-      console.warn('⚠️ Supabase not available - using in-memory fallback for presence');
-      return [...this.presence];
+      console.warn('⚠️ Supabase not available - using cross-tab communication for presence');
+      return crossTabService.getPresence();
     }
 
     try {
@@ -241,8 +221,8 @@ class SupabaseChatService {
     this.getMessages().then(callback);
 
     if (!supabase) {
-      console.warn('Supabase not initialized, using polling fallback');
-      return () => this.messageListeners.delete(callback);
+      console.warn('Supabase not initialized, using cross-tab communication');
+      return crossTabService.subscribeToMessages(callback);
     }
 
     // Set up real-time subscription
@@ -273,8 +253,8 @@ class SupabaseChatService {
     this.getPresence().then(callback);
 
     if (!supabase) {
-      console.warn('Supabase not initialized, using polling fallback');
-      return () => this.presenceListeners.delete(callback);
+      console.warn('Supabase not initialized, using cross-tab communication');
+      return crossTabService.subscribeToPresence(callback);
     }
 
     // Set up real-time subscription
@@ -299,7 +279,10 @@ class SupabaseChatService {
   }
 
   async clearChat() {
-    if (!supabase) return;
+    if (!supabase) {
+      crossTabService.clearChat();
+      return;
+    }
 
     try {
       const { error } = await supabase
