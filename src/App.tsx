@@ -236,6 +236,26 @@ function AppContent() {
     return typingMessages[language]?.[user] || typingMessages['en'][user];
   };
 
+  const getAvatarForUser = (sender: 'user1' | 'user2', senderName: string): string => {
+    // Use emoji avatars based on user role
+    const avatars = {
+      'user1': '👤',
+      'user2': '👥'
+    };
+    
+    return avatars[sender] || '👤';
+  };
+
+  const getAvatarColor = (sender: 'user1' | 'user2'): string => {
+    // Different colors for each user
+    const colors = {
+      'user1': '#3b82f6', // Blue
+      'user2': '#10b981'  // Green
+    };
+    
+    return colors[sender] || '#6b7280';
+  };
+
   const sendMessage = async () => {
     console.log('🚀 sendMessage called');
     console.log('📝 newMessage:', newMessage);
@@ -545,6 +565,9 @@ function AppContent() {
 
           return (
             <div key={message.id} className={`message ${isSentByCurrentUser ? 'sent' : 'received'}`}>
+              <div className="message-avatar" style={{ backgroundColor: getAvatarColor(message.sender) }}>
+                {getAvatarForUser(message.sender, message.senderName)}
+              </div>
               <div className="message-content">
                 {showTranslation ? (
                   <div className="translated-text">
@@ -586,12 +609,17 @@ function AppContent() {
         })}
         {typingUser && typingUser !== currentSender && (
           <div className="translating-indicator">
-            <div className="typing-dots">
-              <span></span>
-              <span></span>
-              <span></span>
+            <div className="message-avatar" style={{ backgroundColor: getAvatarColor(typingUser) }}>
+              {getAvatarForUser(typingUser, '')}
             </div>
-            <span>{getLocalizedTypingMessage(typingUser, myLanguage)}</span>
+            <div className="typing-content">
+              <div className="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <span>{getLocalizedTypingMessage(typingUser, myLanguage)}</span>
+            </div>
           </div>
         )}
         <div ref={messagesEndRef} />
