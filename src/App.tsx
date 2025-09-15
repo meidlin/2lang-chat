@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 import { translationService } from './services/translationService';
-import { supabase, getChannelName, ChatEvent } from './services/realtime';
+import { supabase, getChannelName, ChatEvent, generateClientId } from './services/realtime';
 
 interface Message {
   id: string;
@@ -31,7 +31,7 @@ function App() {
   const [currentSender, setCurrentSender] = useState<'user1' | 'user2'>('user1');
   const [, setIsTranslating] = useState(false);
   const [typingUser, setTypingUser] = useState<'user1' | 'user2' | null>(null);
-  const [role, setRole] = useState<'user1' | 'user2' | ''>('');
+  const [role, setRole] = useState<'user1' | 'user2' | 'spectator' | ''>('');
   const [roomId] = useState<string>('global');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -45,7 +45,7 @@ function App() {
   }, [messages]);
   useEffect(() => {
     if (!supabase || !roomId) return;
-    const channel = supabase.channel(getChannelName(roomId), { config: { broadcast: { ack: true } } });
+    const channel = supabase.channel(getChannelName(roomId), { config: { broadcast: { ack: true }, presence: { key: generateClientId() } } });
 
     channel.on('broadcast', { event: 'chat' }, ({ payload }: { payload: ChatEvent }) => {
       if (payload.type === 'message') {
@@ -64,8 +64,24 @@ function App() {
         setTypingUser(payload.isTyping ? payload.sender : null);
       }
     });
+    
+    channel.on('presence', { event: 'sync' }, () => {
+      const state = channel.presenceState();
+      const allUsers = Object.values(state).flat();
+      // Assign roles in join order: first -> user1, second -> user2, rest -> spectators
+      const myKey = (channel as any).presenceKey as string;
+      const orderedKeys = allUsers.map((u: any) => u?.key).filter(Boolean) as string[];
+      const myIndex = orderedKeys.indexOf(myKey);
+      if (myIndex === 0) setRole('user1');
+      else if (myIndex === 1) setRole('user2');
+      else setRole('spectator');
+    });
 
-    channel.subscribe();
+    channel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await channel.track({ key: (channel as any).presenceKey });
+      }
+    });
     return () => { channel.unsubscribe(); };
   }, [roomId]);
 
@@ -172,11 +188,15 @@ function App() {
 
   // Invite link removed
 
+  const otherUser = role === 'user1' ? 'user2' : role === 'user2' ? 'user1' : null;
+  const canSend = role === 'user1' || role === 'user2';
+
   if (!user1Language || !user2Language || !role) {
     return (
       <div className="language-selection">
         <div className="language-container">
           <h1>🌍 Multilingual Chat</h1>
+          <p>Your role: <strong>{role || 'assigning…'}</strong></p>
           <p>Choose languages for both users to start chatting</p>
           {/* Room and invite link removed */}
           {/* OpenAI API key UI removed */}
@@ -215,19 +235,10 @@ function App() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 12, marginBottom: 16, justifyContent: 'center' }}>
-            <button 
-              className={`start-chat-btn ${role === 'user1' ? 'selected' : ''}`}
-              onClick={() => setRole('user1')}
-            >
-              I am User 1
-            </button>
-            <button 
-              className={`start-chat-btn ${role === 'user2' ? 'selected' : ''}`}
-              onClick={() => setRole('user2')}
-            >
-              I am User 2
-            </button>
+          <div style={{ textAlign: 'center', marginBottom: 8, color: '#555' }}>
+            {role === 'user1' && 'Waiting for User 2 to join…'}
+            {role === 'user2' && 'Connected with User 1.'}
+            {role === 'spectator' && 'Spectator mode: read‑only view.'}
           </div>
 
           {user1Language && user2Language && role && (
@@ -335,7 +346,7 @@ function App() {
         />
         <button 
           onClick={sendMessage}
-          disabled={!newMessage.trim()}
+          disabled={!newMessage.trim() || !canSend}
           className="send-btn"
         >
           Send

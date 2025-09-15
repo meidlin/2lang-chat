@@ -13,4 +13,8 @@ export type ChatEvent =
 
 export const getChannelName = (roomId: string) => `multilingual-chat-${roomId}`;
 
+export function generateClientId(): string {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
 
