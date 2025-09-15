@@ -38,6 +38,8 @@ function App() {
   const [pendingName, setPendingName] = useState<string>(() => displayName || '');
   const [user1OnlineName, setUser1OnlineName] = useState<string | null>(null);
   const [user2OnlineName, setUser2OnlineName] = useState<string | null>(null);
+  const [totalUsers, setTotalUsers] = useState<number>(0);
+  const [presenceDebug, setPresenceDebug] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -74,11 +76,20 @@ function App() {
       const state = channel.presenceState();
       // Presence state shape: { [clientId]: [ { name, ts, ... }, ... ] }
       const entries = Object.entries(state) as Array<[string, any[]]>;
+      
+      // Debug information
+      const debugInfo = `Total users: ${entries.length}, Entries: ${JSON.stringify(entries.map(([key, metas]) => ({ key, meta: metas?.[0] || {} })), null, 2)}`;
+      setPresenceDebug(debugInfo);
+      setTotalUsers(entries.length);
+      
       // Order by first seen (existing order of keys is acceptable for simple rooms)
       const ordered = entries
         .map(([key, metas]) => ({ key, meta: metas?.[0] || {} }))
         .sort((a, b) => (a.meta.ts || 0) - (b.meta.ts || 0));
+      
       const myIndex = ordered.findIndex(e => e.key === clientId);
+      console.log('Presence sync:', { clientId, myIndex, ordered, state });
+      
       if (myIndex === 0) setRole('user1');
       else if (myIndex === 1) setRole('user2');
       else setRole('spectator');
@@ -200,7 +211,6 @@ function App() {
 
   // Invite link removed
 
-  const otherUser = role === 'user1' ? 'user2' : role === 'user2' ? 'user1' : null;
   const canSend = role === 'user1' || role === 'user2';
 
   // Onboarding: ask for display name first
@@ -234,7 +244,14 @@ function App() {
         <div className="language-container">
           <h1>🌍 Multilingual Chat</h1>
           <p>Your role: <strong>{role || 'assigning…'}</strong> • Name: <strong>{displayName}</strong></p>
+          <p>Online users: <strong>{totalUsers}</strong></p>
           <p>Choose languages for both users to start chatting</p>
+          {presenceDebug && (
+            <details style={{ margin: '10px 0', padding: '10px', background: '#f5f5f5', borderRadius: '4px', fontSize: '12px' }}>
+              <summary>Debug Info</summary>
+              <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{presenceDebug}</pre>
+            </details>
+          )}
           {/* Room and invite link removed */}
           {/* OpenAI API key UI removed */}
           
@@ -305,6 +322,7 @@ function App() {
           <span className="user2-lang">
             {LANGUAGES.find(l => l.code === user2Language)?.flag} User 2
           </span>
+          <span className="user-count">({totalUsers} online)</span>
         </div>
         <div className="header-actions">
           <button className="refresh-btn" onClick={refreshApp} aria-label="Refresh app">Refresh</button>

@@ -166,6 +166,12 @@
   font-size: 1.2rem;
 }
 
+.user-count {
+  font-size: 0.8rem;
+  opacity: 0.8;
+  margin-left: 8px;
+}
+
 .switch-user-btn {
   background: rgba(255, 255, 255, 0.2);
   color: white;
