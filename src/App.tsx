@@ -409,6 +409,18 @@ function AppContent() {
     setCurrentSender('user1');
     setUser1Language('');
     setUser2Language('');
+    setMyLanguage('');
+    setDisplayName('');
+    setPendingName('');
+    setRole('');
+    setCurrentRoomId(null);
+    setCurrentUserId(null);
+    setShowRoomSelection(false);
+    setConnectionStatus('connecting');
+    setUser1OnlineName(null);
+    setUser2OnlineName(null);
+    setTotalUsers(0);
+    setPresenceDebug('');
   };
 
   const refreshApp = async () => {

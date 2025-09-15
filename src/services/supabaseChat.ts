@@ -503,9 +503,9 @@ class SupabaseChatService {
         .gt('timestamp', new Date(Date.now() - 10 * 1000).toISOString()) // Only recent indicators
         .order('timestamp', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+      if (error) {
         throw error;
       }
 
