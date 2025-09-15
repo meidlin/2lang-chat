@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 import { translationService } from './services/translationService';
 import { getOrCreateClientId } from './services/realtime';
-import { supabaseChatService } from './services/supabaseChat';
+import { supabaseChatService, TypingIndicator } from './services/supabaseChat';
 import ErrorBoundary from './ErrorBoundary';
 
 interface Message {
@@ -34,7 +34,7 @@ function AppContent() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [currentSender, setCurrentSender] = useState<'user1' | 'user2'>('user1');
-  const [typingUser, setTypingUser] = useState<'user1' | 'user2' | null>(null);
+  const [typingIndicator, setTypingIndicator] = useState<TypingIndicator | null>(null);
   const [role, setRole] = useState<'user1' | 'user2' | 'spectator' | ''>('');
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   
@@ -147,6 +147,12 @@ function AppContent() {
       setConnectionStatus('connected');
     });
 
+    // Subscribe to typing indicators
+    const unsubscribeTyping = supabaseChatService.subscribeToTypingIndicator((typing) => {
+      console.log('⌨️ Typing indicator update:', typing);
+      setTypingIndicator(typing);
+    });
+
     // Add cleanup when user closes the window or navigates away
     const handleBeforeUnload = async () => {
       if (displayName && role) {
@@ -179,6 +185,7 @@ function AppContent() {
     return () => {
       unsubscribeMessages();
       unsubscribePresence();
+      unsubscribeTyping();
       window.removeEventListener('beforeunload', handleBeforeUnload);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
@@ -306,7 +313,7 @@ function AppContent() {
         const sourceLanguage = myLanguage;
 
         // Set typing indicator to show the SENDER is typing (for the receiving user to see)
-        setTypingUser(currentSender);
+        await supabaseChatService.setTypingIndicator(currentSender, true);
         console.log('⏳ Setting typing indicator for sender:', currentSender);
 
         // Add a minimum typing duration for better UX
@@ -323,13 +330,13 @@ function AppContent() {
           .catch((error) => {
             console.error('❌ Translation failed:', error);
           })
-          .finally(() => {
+          .finally(async () => {
             // Ensure minimum typing duration has passed
             const elapsed = Date.now() - typingStartTime;
             const remainingTime = Math.max(0, minTypingDuration - elapsed);
             
-            setTimeout(() => {
-              setTypingUser(null);
+            setTimeout(async () => {
+              await supabaseChatService.setTypingIndicator(currentSender, false);
               console.log('✅ Typing indicator cleared');
             }, remainingTime);
           });
@@ -607,10 +614,10 @@ function AppContent() {
             </div>
           );
         })}
-        {typingUser && typingUser !== currentSender && (
+        {typingIndicator && typingIndicator.isTyping && typingIndicator.user !== currentSender && (
           <div className="translating-indicator">
-            <div className="message-avatar" style={{ backgroundColor: getAvatarColor(typingUser) }}>
-              {getAvatarForUser(typingUser, '')}
+            <div className="message-avatar" style={{ backgroundColor: getAvatarColor(typingIndicator.user) }}>
+              {getAvatarForUser(typingIndicator.user, '')}
             </div>
             <div className="typing-content">
               <div className="typing-dots">
@@ -618,7 +625,7 @@ function AppContent() {
                 <span></span>
                 <span></span>
               </div>
-              <span>{getLocalizedTypingMessage(typingUser, myLanguage)}</span>
+              <span>{getLocalizedTypingMessage(typingIndicator.user, myLanguage)}</span>
             </div>
           </div>
         )}

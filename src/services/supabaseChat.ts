@@ -19,9 +19,16 @@ export interface SharedPresence {
   lastSeen: number;
 }
 
+export interface TypingIndicator {
+  user: 'user1' | 'user2';
+  isTyping: boolean;
+  timestamp: number;
+}
+
 class SupabaseChatService {
   private messageListeners: Set<(messages: SharedMessage[]) => void> = new Set();
   private presenceListeners: Set<(presence: SharedPresence[]) => void> = new Set();
+  private typingListeners: Set<(typing: TypingIndicator | null) => void> = new Set();
   private presenceCleanupInterval: NodeJS.Timeout | null = null;
 
   constructor() {
@@ -339,12 +346,106 @@ class SupabaseChatService {
     }
   }
 
+  // Typing indicator methods
+  async setTypingIndicator(user: 'user1' | 'user2', isTyping: boolean) {
+    if (!supabase) {
+      throw new Error('Supabase not available - cannot set typing indicator');
+    }
+
+    try {
+      console.log('⌨️ Setting typing indicator:', { user, isTyping });
+      const { error } = await supabase
+        .from('typing_indicators')
+        .upsert({
+          user,
+          is_typing: isTyping,
+          timestamp: new Date().toISOString()
+        }, {
+          onConflict: 'user'
+        });
+
+      if (error) {
+        console.error('❌ Error setting typing indicator:', error);
+        throw error;
+      }
+
+      console.log('✅ Typing indicator set successfully');
+    } catch (error) {
+      console.error('💥 Error setting typing indicator:', error);
+      throw error;
+    }
+  }
+
+  async getTypingIndicator(): Promise<TypingIndicator | null> {
+    if (!supabase) {
+      throw new Error('Supabase not available - cannot get typing indicator');
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('typing_indicators')
+        .select('*')
+        .eq('is_typing', true)
+        .gt('timestamp', new Date(Date.now() - 10 * 1000).toISOString()) // Only recent indicators
+        .order('timestamp', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+        throw error;
+      }
+
+      if (!data) return null;
+
+      return {
+        user: data.user,
+        isTyping: data.is_typing,
+        timestamp: new Date(data.timestamp).getTime()
+      };
+    } catch (error) {
+      console.error('Error fetching typing indicator:', error);
+      return null;
+    }
+  }
+
+  subscribeToTypingIndicator(callback: (typing: TypingIndicator | null) => void) {
+    this.typingListeners.add(callback);
+    
+    // Immediately call with current typing indicator
+    this.getTypingIndicator().then(callback);
+
+    if (!supabase) {
+      throw new Error('Supabase not available - cannot subscribe to typing indicator');
+    }
+
+    // Set up real-time subscription
+    const subscription = supabase
+      .channel('typing_indicators')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'typing_indicators' },
+        () => {
+          this.getTypingIndicator().then(typing => {
+            this.typingListeners.forEach(listener => listener(typing));
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      this.typingListeners.delete(callback);
+      if (this.typingListeners.size === 0) {
+        subscription.unsubscribe();
+      }
+    };
+  }
+
   destroy() {
     if (this.presenceCleanupInterval) {
       clearInterval(this.presenceCleanupInterval);
     }
     this.messageListeners.clear();
     this.presenceListeners.clear();
+    this.typingListeners.clear();
   }
 }
 
