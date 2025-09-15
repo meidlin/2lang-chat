@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 import { translationService } from './services/translationService';
 import { getOrCreateClientId } from './services/realtime';
-import { sharedChatService } from './services/sharedChat';
+import { supabaseChatService } from './services/supabaseChat';
 
 interface Message {
   id: string;
@@ -32,9 +32,9 @@ function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [currentSender, setCurrentSender] = useState<'user1' | 'user2'>('user1');
-  const [, setIsTranslating] = useState(false);
   const [typingUser, setTypingUser] = useState<'user1' | 'user2' | null>(null);
   const [role, setRole] = useState<'user1' | 'user2' | 'spectator' | ''>('');
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   
   const [displayName, setDisplayName] = useState<string>(() => {
     const clientId = getOrCreateClientId();
@@ -56,46 +56,51 @@ function App() {
   }, [messages]);
   // Initialize shared chat service
   useEffect(() => {
-    const clientId = getOrCreateClientId();
-    
-    // Assign role based on existing presence or create new one
-    const presence = sharedChatService.getPresence();
-    const existingUser = presence.find(p => p.clientId === clientId);
-    
-    if (existingUser) {
-      setRole(existingUser.role);
-    } else {
-      // New user - assign role based on existing users
-      const user1Count = presence.filter(p => p.role === 'user1').length;
-      const user2Count = presence.filter(p => p.role === 'user2').length;
+    const initializeChat = async () => {
+      const clientId = getOrCreateClientId();
       
-      let newRole: 'user1' | 'user2' | 'spectator';
-      if (user1Count === 0) {
-        newRole = 'user1';
-      } else if (user2Count === 0) {
-        newRole = 'user2';
+      // Assign role based on existing presence or create new one
+      const presence = await supabaseChatService.getPresence();
+      const existingUser = presence.find(p => p.clientId === clientId);
+      
+      if (existingUser) {
+        setRole(existingUser.role);
       } else {
-        newRole = 'spectator';
+        // New user - assign role based on existing users
+        const user1Count = presence.filter(p => p.role === 'user1').length;
+        const user2Count = presence.filter(p => p.role === 'user2').length;
+        
+        let newRole: 'user1' | 'user2' | 'spectator';
+        if (user1Count === 0) {
+          newRole = 'user1';
+        } else if (user2Count === 0) {
+          newRole = 'user2';
+        } else {
+          newRole = 'spectator';
+        }
+        
+        setRole(newRole);
+        // Update presence when we have a display name
+        if (displayName) {
+          await supabaseChatService.updatePresence(clientId, displayName, newRole);
+        }
       }
-      
-      setRole(newRole);
-      // Update presence when we have a display name
-      if (displayName) {
-        sharedChatService.updatePresence(clientId, displayName, newRole);
-      }
-    }
+    };
+
+    initializeChat();
 
     // Subscribe to messages
-    const unsubscribeMessages = sharedChatService.subscribeToMessages((sharedMessages) => {
+    const unsubscribeMessages = supabaseChatService.subscribeToMessages((sharedMessages) => {
       const convertedMessages: Message[] = sharedMessages.map(msg => ({
         ...msg,
         timestamp: new Date(msg.timestamp)
       }));
       setMessages(convertedMessages);
+      setConnectionStatus('connected');
     });
 
     // Subscribe to presence
-    const unsubscribePresence = sharedChatService.subscribeToPresence((presence) => {
+    const unsubscribePresence = supabaseChatService.subscribeToPresence((presence) => {
       setTotalUsers(presence.length);
       
       const user1 = presence.find(p => p.role === 'user1');
@@ -104,7 +109,8 @@ function App() {
       setUser1OnlineName(user1?.name || null);
       setUser2OnlineName(user2?.name || null);
       
-      setPresenceDebug(`Shared mode: ${presence.length} users online`);
+      setPresenceDebug(`Supabase real-time: ${presence.length} users online`);
+      setConnectionStatus('connected');
     });
 
     return () => {
@@ -117,7 +123,7 @@ function App() {
   useEffect(() => {
     if (!displayName) return;
     const clientId = getOrCreateClientId();
-    sharedChatService.updatePresence(clientId, displayName, role as 'user1' | 'user2' | 'spectator');
+    supabaseChatService.updatePresence(clientId, displayName, role as 'user1' | 'user2' | 'spectator');
   }, [displayName, role]);
 
   // Sync my language choice with the appropriate user language
@@ -136,46 +142,89 @@ function App() {
   const translateText = async (text: string, fromLang: string, toLang: string): Promise<string> => {
     if (fromLang === toLang) return text;
     
-    setIsTranslating(true);
     try {
       const result = await translationService.translateText(text, fromLang, toLang);
       return result.translatedText;
     } catch (error) {
       console.error('Translation error:', error);
       return text;
-    } finally {
-      setIsTranslating(false);
     }
   };
 
   const sendMessage = async () => {
-    if (!newMessage.trim() || !user1Language || !user2Language) return;
+    console.log('🚀 sendMessage called');
+    console.log('📝 newMessage:', newMessage);
+    console.log('🌍 myLanguage:', myLanguage);
+    console.log('👤 currentSender:', currentSender);
+    console.log('📛 displayName:', displayName);
+    
+    if (!newMessage.trim()) {
+      console.log('❌ No message text');
+      return;
+    }
+    
+    if (!myLanguage) {
+      console.log('❌ No language selected');
+      return;
+    }
 
     const messageText = newMessage;
     setNewMessage('');
+    console.log('✅ Message validation passed, proceeding...');
 
-    // Add message to shared chat
-    const messageId = sharedChatService.addMessage({
-      text: messageText,
-      sender: currentSender,
-      senderName: displayName || 'Anonymous',
-      showOriginal: false
-    });
+    try {
+      console.log('📤 Adding message to Supabase...');
+      const messageData = {
+        text: messageText,
+        sender: currentSender,
+        senderName: displayName || 'Anonymous',
+        showOriginal: false
+      };
+      console.log('📦 Message data:', messageData);
+      
+      const messageId = await supabaseChatService.addMessage(messageData);
+      console.log('✅ Message added with ID:', messageId);
 
-    // If languages differ, translate asynchronously and update the message
-    if (user1Language !== user2Language) {
-      const targetLanguage = currentSender === 'user1' ? user2Language : user1Language;
-      const sourceLanguage = currentSender === 'user1' ? user1Language : user2Language;
+      // If there are other users online with different languages, translate the message
+      console.log('🔍 Checking translation conditions...');
+      console.log('👥 user1OnlineName:', user1OnlineName);
+      console.log('👥 user2OnlineName:', user2OnlineName);
+      console.log('🌍 user1Language:', user1Language);
+      console.log('🌍 user2Language:', user2Language);
+      
+      if (user1OnlineName && user2OnlineName && user1Language && user2Language && user1Language !== user2Language) {
+        console.log('🔄 Translation needed, starting translation...');
+        const targetLanguage = currentSender === 'user1' ? user2Language : user1Language;
+        const sourceLanguage = myLanguage;
 
-      const receivingUser = currentSender === 'user1' ? 'user2' : 'user1';
-      setTypingUser(receivingUser);
+        const receivingUser = currentSender === 'user1' ? 'user2' : 'user1';
+        setTypingUser(receivingUser);
+        console.log('⏳ Setting typing indicator for:', receivingUser);
 
-      try {
-        const translated = await translateText(messageText, sourceLanguage, targetLanguage);
-        sharedChatService.updateMessage(messageId, { translatedText: translated });
-      } finally {
-        setTypingUser(null);
+        try {
+          console.log('🌐 Translating from', sourceLanguage, 'to', targetLanguage);
+          const translated = await translateText(messageText, sourceLanguage, targetLanguage);
+          console.log('✅ Translation result:', translated);
+          await supabaseChatService.updateMessage(messageId, { translatedText: translated });
+          console.log('✅ Translation saved to message');
+        } finally {
+          setTypingUser(null);
+          console.log('✅ Typing indicator cleared');
+        }
+      } else {
+        console.log('ℹ️ No translation needed');
       }
+      
+      console.log('🎉 Message send process completed successfully');
+    } catch (error) {
+      console.error('💥 Error sending message:', error);
+      console.error('💥 Error details:', {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        name: error instanceof Error ? error.name : 'Unknown'
+      });
+      // Show error to user
+      alert('Failed to send message. Please check your connection and try again. Check console for details.');
     }
   };
 
@@ -194,7 +243,7 @@ function App() {
   };
 
   const goBackToLanguageSelection = () => {
-    sharedChatService.clearChat();
+    supabaseChatService.clearChat();
     setNewMessage('');
     setCurrentSender('user1');
     setUser1Language('');
@@ -219,6 +268,14 @@ function App() {
   // Invite link removed
 
   const canSend = role === 'user1' || role === 'user2';
+  
+  // Debug canSend
+  console.log('🔍 canSend debug:', {
+    role,
+    canSend,
+    isUser1: role === 'user1',
+    isUser2: role === 'user2'
+  });
 
   // Onboarding: ask for display name first
   if (!displayName) {
@@ -269,47 +326,11 @@ function App() {
           {/* Room and invite link removed */}
           {/* OpenAI API key UI removed */}
           
-          <div className="language-grid">
-            <div className="language-section">
-              <h3>👤 User 1 Language {user1OnlineName ? (<span className="presence-badge">{user1OnlineName}</span>) : (<span className="presence-badge waiting">waiting…</span>)}
-              </h3>
-              <div className="language-options">
-                {LANGUAGES.map(lang => (
-                  <button
-                    key={lang.code}
-                    className={`language-btn ${user1Language === lang.code ? 'selected' : ''}`}
-                    onClick={() => setUser1Language(lang.code)}
-                    disabled={role !== 'user1'}
-                  >
-                    <span className="flag">{lang.flag}</span>
-                    <span className="name">{lang.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="language-section">
-              <h3>👤 User 2 Language {user2OnlineName ? (<span className="presence-badge">{user2OnlineName}</span>) : (<span className="presence-badge waiting">waiting…</span>)}
-              </h3>
-              <div className="language-options">
-                {LANGUAGES.map(lang => (
-                  <button
-                    key={lang.code}
-                    className={`language-btn ${user2Language === lang.code ? 'selected' : ''}`}
-                    onClick={() => setUser2Language(lang.code)}
-                    disabled={role !== 'user2'}
-                  >
-                    <span className="flag">{lang.flag}</span>
-                    <span className="name">{lang.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* My Language Selection */}
-          <div className="language-section" style={{ marginTop: '20px' }}>
+          <div className="language-section">
             <h3>🌍 Choose Your Language</h3>
+            <p style={{ fontSize: '0.9rem', color: '#666', marginBottom: '15px' }}>
+              Select the language you want to chat in. Other users will see your messages in their chosen language.
+            </p>
             <div className="language-options">
               {LANGUAGES.map(lang => (
                 <button
@@ -324,6 +345,29 @@ function App() {
             </div>
           </div>
 
+          {/* Show other users' language choices */}
+          {(user1OnlineName || user2OnlineName) && (
+            <div className="other-users-section" style={{ marginTop: '20px', padding: '15px', background: '#f8f9fa', borderRadius: '10px' }}>
+              <h4 style={{ margin: '0 0 10px 0', fontSize: '1rem', color: '#333' }}>Other Users Online</h4>
+              {user1OnlineName && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px' }}>
+                  <span>👤 {user1OnlineName}</span>
+                  <span className="presence-badge">
+                    {user1Language ? LANGUAGES.find(l => l.code === user1Language)?.flag + ' ' + LANGUAGES.find(l => l.code === user1Language)?.name : 'Choosing language...'}
+                  </span>
+                </div>
+              )}
+              {user2OnlineName && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>👤 {user2OnlineName}</span>
+                  <span className="presence-badge">
+                    {user2Language ? LANGUAGES.find(l => l.code === user2Language)?.flag + ' ' + LANGUAGES.find(l => l.code === user2Language)?.name : 'Choosing language...'}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
           <div style={{ textAlign: 'center', marginBottom: 8, color: '#555' }}>
             {role === 'user1' && !user2OnlineName && 'Waiting for User 2 to join…'}
             {role === 'user1' && user2OnlineName && 'User 2 is online!'}
@@ -331,7 +375,7 @@ function App() {
             {role === 'spectator' && 'Spectator mode: read‑only view.'}
           </div>
 
-          {myLanguage && user1Language && user2Language && (
+          {myLanguage && (
             <button 
               className="start-chat-btn"
               onClick={() => {
@@ -360,6 +404,11 @@ function App() {
             {LANGUAGES.find(l => l.code === user2Language)?.flag} User 2
           </span>
           <span className="user-count">({totalUsers} online)</span>
+          <span className={`connection-status ${connectionStatus}`}>
+            {connectionStatus === 'connecting' && '🔄'}
+            {connectionStatus === 'connected' && '🟢'}
+            {connectionStatus === 'disconnected' && '🔴'}
+          </span>
         </div>
         <div className="header-actions">
           <button className="refresh-btn" onClick={refreshApp} aria-label="Refresh app">Refresh</button>
@@ -435,8 +484,10 @@ function App() {
           value={newMessage}
           onChange={(e) => setNewMessage(e.target.value)}
           onKeyDown={(e) => {
+            console.log('⌨️ Key pressed:', e.key);
             const ne = e as unknown as React.KeyboardEvent<HTMLInputElement> & { nativeEvent: any };
             if (ne.key === 'Enter' && !ne.shiftKey && !(ne.nativeEvent && ne.nativeEvent.isComposing)) {
+              console.log('⌨️ Enter key detected, calling sendMessage');
               e.preventDefault();
               sendMessage();
             }
@@ -445,7 +496,12 @@ function App() {
           
         />
         <button 
-          onClick={sendMessage}
+          onClick={() => {
+            console.log('🔘 Send button clicked');
+            console.log('🔘 Button disabled?', !newMessage.trim() || !canSend);
+            console.log('🔘 canSend:', canSend);
+            sendMessage();
+          }}
           disabled={!newMessage.trim() || !canSend}
           className="send-btn"
         >

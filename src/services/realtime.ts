@@ -3,15 +3,27 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY || '';
 
-console.log('Environment variables:', {
+console.log('🔧 Realtime service initialization:');
+console.log('🔧 Environment variables:', {
   supabaseUrl: supabaseUrl ? 'SET' : 'MISSING',
   supabaseAnonKey: supabaseAnonKey ? 'SET' : 'MISSING',
   allEnvVars: Object.keys(process.env).filter(key => key.startsWith('REACT_APP_'))
 });
 
+if (supabaseUrl && supabaseAnonKey) {
+  console.log('✅ Creating Supabase client with URL:', supabaseUrl);
+  console.log('✅ Anon key present:', supabaseAnonKey.substring(0, 10) + '...');
+} else {
+  console.error('❌ Missing Supabase environment variables!');
+  console.error('❌ Supabase URL:', supabaseUrl);
+  console.error('❌ Supabase Key:', supabaseAnonKey ? 'Present' : 'Missing');
+}
+
 export const supabase = (supabaseUrl && supabaseAnonKey)
   ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
+
+console.log('🔧 Supabase client created:', !!supabase);
 
 export type ChatEvent =
   | { type: 'message'; id: string; text: string; sender: 'user1' | 'user2'; timestamp: string }

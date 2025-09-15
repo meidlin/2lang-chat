@@ -185,6 +185,26 @@
   margin-left: 8px;
 }
 
+.connection-status {
+  margin-left: 8px;
+  font-size: 0.8rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.connection-status.connecting {
+  color: #f59e0b;
+}
+
+.connection-status.connected {
+  color: #10b981;
+}
+
+.connection-status.disconnected {
+  color: #ef4444;
+}
+
 .switch-user-btn {
   background: rgba(255, 255, 255, 0.2);
   color: white;
