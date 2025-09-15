@@ -270,12 +270,14 @@ class SupabaseChatService {
     this.currentUserInfo = { name, role, language };
 
     try {
-      console.log('📝 Updating presence:', { clientId, name, role, language });
+      console.log('📝 Updating presence:', { clientId, name, role, language, currentRoomId: this.currentRoomId, currentUserId: this.currentUserId });
       const upsertData = {
         client_id: clientId,
+        user_id: this.currentUserId || 'unknown',
         name,
         role,
         language,
+        room_id: this.currentRoomId || 'default',
         last_seen: new Date().toISOString(),
       };
       console.log('📦 Upsert data:', upsertData);
@@ -471,11 +473,11 @@ class SupabaseChatService {
       const { error } = await supabase
         .from('typing_indicators')
         .upsert({
-          "user": user,
+          user_role: user,
           is_typing: isTyping,
           timestamp: new Date().toISOString()
         }, {
-          onConflict: '"user"'
+          onConflict: 'user_role'
         });
 
       if (error) {
@@ -512,7 +514,7 @@ class SupabaseChatService {
       if (!data) return null;
 
       return {
-        user: data["user"],
+        user: data.user_role,
         isTyping: data.is_typing,
         timestamp: new Date(data.timestamp).getTime()
       };
