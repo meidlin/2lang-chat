@@ -49,9 +49,14 @@ function App() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+  // Initialize presence tracking immediately
   useEffect(() => {
-    if (!supabase || !roomId) return;
+    if (!supabase || !roomId) {
+      console.log('Supabase or roomId missing:', { supabase: !!supabase, roomId });
+      return;
+    }
     const clientId = getOrCreateClientId();
+    console.log('Initializing presence with clientId:', clientId);
     const channel = supabase.channel(getChannelName(roomId), { config: { broadcast: { ack: true }, presence: { key: clientId } } });
 
     channel.on('broadcast', { event: 'chat' }, ({ payload }: { payload: ChatEvent }) => {
@@ -101,12 +106,28 @@ function App() {
     });
 
     channel.subscribe(async (status) => {
+      console.log('Channel subscription status:', status);
       if (status === 'SUBSCRIBED') {
+        console.log('Tracking presence with:', { clientId, name: displayName || 'Anonymous' });
         await channel.track({ clientId, name: displayName || 'Anonymous', ts: Date.now() });
       }
     });
     return () => { channel.unsubscribe(); };
-  }, [roomId, displayName]);
+  }, [roomId]);
+
+  // Update presence when displayName changes
+  useEffect(() => {
+    if (!supabase || !roomId || !displayName) return;
+    const clientId = getOrCreateClientId();
+    const channel = supabase.channel(getChannelName(roomId));
+    
+    channel.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await channel.track({ clientId, name: displayName, ts: Date.now() });
+      }
+    });
+    return () => { channel.unsubscribe(); };
+  }, [displayName, roomId]);
 
   // OpenAI key entry removed; service will use env var if set
 
