@@ -679,6 +679,9 @@ function AppContent() {
     );
   }
 
+  // Debug: Log the condition values
+  console.log('🔍 Render condition check:', { myLanguage, role, showRoomSelection, condition: !myLanguage || !role });
+  
   if (!myLanguage || !role) {
     return (
       <div className="language-selection">
@@ -687,6 +690,9 @@ function AppContent() {
           <p>Your role: <strong>{role || 'assigning…'}</strong> • Name: <strong>{displayName}</strong></p>
           <p>Online users: <strong>{totalUsers}</strong></p>
           <p>Choose languages for both users to start chatting</p>
+          <div style={{ background: '#ffffcc', padding: '10px', margin: '10px 0', border: '2px solid #ff0000' }}>
+            <strong>DEBUG:</strong> myLanguage='{myLanguage}', role='{role}', showRoomSelection={showRoomSelection ? 'true' : 'false'}
+          </div>
           {presenceDebug && (
             <details style={{ margin: '10px 0', padding: '10px', background: '#f5f5f5', borderRadius: '4px', fontSize: '12px' }}>
               <summary>Debug Info</summary>
