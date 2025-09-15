@@ -32,10 +32,8 @@ function App() {
   const [, setIsTranslating] = useState(false);
   const [typingUser, setTypingUser] = useState<'user1' | 'user2' | null>(null);
   const [role, setRole] = useState<'user1' | 'user2' | ''>('');
-  const [roomId, setRoomId] = useState<string>(() => new URLSearchParams(window.location.search).get('room') || '');
+  const [roomId] = useState<string>('global');
   const [channelReady, setChannelReady] = useState<boolean>(false);
-  const [apiKey, setApiKey] = useState<string>(() => localStorage.getItem('openai_api_key') || '');
-  const [apiKeySaved, setApiKeySaved] = useState<boolean>(!!localStorage.getItem('openai_api_key'));
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -73,11 +71,7 @@ function App() {
     return () => { setChannelReady(false); channel.unsubscribe(); };
   }, [roomId]);
 
-  useEffect(() => {
-    if (apiKey) {
-      translationService.setApiKey(apiKey);
-    }
-  }, [apiKey]);
+  // OpenAI key entry removed; service will use env var if set
 
   const translateText = async (text: string, fromLang: string, toLang: string): Promise<string> => {
     if (fromLang === toLang) return text;
@@ -178,39 +172,15 @@ function App() {
     }
   };
 
-  const copyInviteLink = async () => {
-    const url = new URL(window.location.href);
-    if (roomId) url.searchParams.set('room', roomId);
-    try {
-      await navigator.clipboard.writeText(url.toString());
-      alert('Invite link copied!');
-    } catch {
-      prompt('Copy this invite link:', url.toString());
-    }
-  };
+  // Invite link removed
 
-  if (!user1Language || !user2Language || !role || !roomId) {
+  if (!user1Language || !user2Language || !role) {
     return (
       <div className="language-selection">
         <div className="language-container">
           <h1>🌍 Multilingual Chat</h1>
           <p>Choose languages for both users to start chatting</p>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', justifyContent: 'center' }}>
-            <input
-              type="text"
-              placeholder="Room ID (e.g., team-123)"
-              value={roomId}
-              onChange={(e) => setRoomId(e.target.value.trim())}
-              style={{ padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', width: '60%' }}
-            />
-            <button
-              onClick={() => { if (roomId) { const url = new URL(window.location.href); url.searchParams.set('room', roomId); window.history.replaceState({}, '', url.toString()); } }}
-              className="start-chat-btn"
-            >Set Room</button>
-            {roomId && (
-              <button onClick={copyInviteLink} className="start-chat-btn">Copy invite link</button>
-            )}
-          </div>
+          {/* Room and invite link removed */}
           <div style={{
             background: '#f5f6ff',
             border: '1px solid #e2e6ff',
@@ -300,10 +270,10 @@ function App() {
             </button>
           </div>
 
-          {user1Language && user2Language && role && roomId && (
+          {user1Language && user2Language && role && (
             <button 
               className="start-chat-btn"
-              onClick={() => { if (roomId) { const url = new URL(window.location.href); url.searchParams.set('room', roomId); window.history.replaceState({}, '', url.toString()); }} }
+              onClick={() => {}}
             >
               Start Chatting! 💬
             </button>
@@ -327,7 +297,6 @@ function App() {
           </span>
         </div>
         <div className="header-actions">
-          {roomId && (<button className="refresh-btn" onClick={copyInviteLink}>Copy link</button>)}
           <button className="refresh-btn" onClick={refreshApp} aria-label="Refresh app">Refresh</button>
           <button className="switch-user-btn" onClick={switchSender}>
             Switch to {currentSender === 'user1' ? 'User 2' : 'User 1'}
