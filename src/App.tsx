@@ -53,6 +53,11 @@ function App() {
   useEffect(() => {
     if (!supabase || !roomId) {
       console.log('Supabase or roomId missing:', { supabase: !!supabase, roomId });
+      // Fallback: assign role based on clientId for offline mode
+      const clientId = getOrCreateClientId();
+      const isFirstUser = clientId < 'm'; // Simple fallback
+      setRole(isFirstUser ? 'user1' : 'user2');
+      setTotalUsers(1);
       return;
     }
     const clientId = getOrCreateClientId();
@@ -105,11 +110,23 @@ function App() {
       setUser2OnlineName(second.name ? String(second.name) : null);
     });
 
-    channel.subscribe(async (status) => {
-      console.log('Channel subscription status:', status);
+    channel.subscribe(async (status, err) => {
+      console.log('Channel subscription status:', status, err);
       if (status === 'SUBSCRIBED') {
         console.log('Tracking presence with:', { clientId, name: displayName || 'Anonymous' });
         await channel.track({ clientId, name: displayName || 'Anonymous', ts: Date.now() });
+      } else if (status === 'CHANNEL_ERROR') {
+        console.error('Channel error:', err);
+        // Fallback: assign role based on clientId for offline mode
+        const isFirstUser = clientId < 'm'; // Simple fallback
+        setRole(isFirstUser ? 'user1' : 'user2');
+        setTotalUsers(1);
+      } else if (status === 'TIMED_OUT') {
+        console.error('Channel timed out');
+        // Fallback: assign role based on clientId for offline mode
+        const isFirstUser = clientId < 'm'; // Simple fallback
+        setRole(isFirstUser ? 'user1' : 'user2');
+        setTotalUsers(1);
       }
     });
     return () => { channel.unsubscribe(); };
