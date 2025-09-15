@@ -127,6 +127,10 @@ function AppContent() {
       setUser2OnlineName(user2?.name || null);
       
       // Extract language information from presence data
+      console.log('🔍 Extracting language from presence:', {
+        user1: user1 ? { name: user1.name, language: user1.language } : null,
+        user2: user2 ? { name: user2.name, language: user2.language } : null
+      });
       setUser1Language(user1?.language || '');
       setUser2Language(user2?.language || '');
       
@@ -175,6 +179,7 @@ function AppContent() {
   useEffect(() => {
     if (!displayName) return;
     const clientId = getOrCreateClientId();
+    console.log('🔄 Updating presence with language:', { clientId, displayName, role, myLanguage });
     supabaseChatService.updatePresence(clientId, displayName, role as 'user1' | 'user2' | 'spectator', myLanguage);
   }, [displayName, role, myLanguage]);
 
