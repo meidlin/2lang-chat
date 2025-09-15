@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Use environment variables if available, otherwise fallback to hardcoded values
 // Try both REACT_APP_ prefixed and standard Supabase variable names
@@ -45,7 +46,7 @@ if (supabaseUrl && supabaseAnonKey) {
 }
 
 // Create Supabase client with error handling
-let supabase = null;
+let supabase: SupabaseClient | null = null;
 try {
   if (supabaseUrl && supabaseAnonKey) {
     supabase = createClient(supabaseUrl, supabaseAnonKey);
