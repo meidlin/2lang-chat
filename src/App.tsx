@@ -699,16 +699,68 @@ function AppContent() {
             </div>
           )}
 
-          <div style={{ textAlign: 'center', marginBottom: 8, color: '#555' }}>
-            {role === 'user1' && !user2OnlineName && 'Waiting for User 2 to join…'}
-            {role === 'user1' && user2OnlineName && 'User 2 is online!'}
-            {role === 'user2' && 'Connected with User 1.'}
-            {role === 'spectator' && 'Spectator mode: read‑only view.'}
+          {/* Waiting/Connection Status */}
+          <div style={{ 
+            textAlign: 'center', 
+            marginBottom: '20px', 
+            padding: '20px', 
+            background: role === 'user1' && !user2OnlineName ? '#fff3cd' : '#d1ecf1',
+            border: role === 'user1' && !user2OnlineName ? '1px solid #ffeaa7' : '1px solid #bee5eb',
+            borderRadius: '10px',
+            color: '#856404'
+          }}>
+            {role === 'user1' && !user2OnlineName && (
+              <div>
+                <div style={{ fontSize: '24px', marginBottom: '10px' }}>⏳</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>Waiting for User 2 to join…</div>
+                <div style={{ fontSize: '14px', marginBottom: '15px' }}>Share this room with someone to start chatting!</div>
+                <button 
+                  onClick={() => {
+                    const roomUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
+                    navigator.clipboard.writeText(roomUrl).then(() => {
+                      alert('Room link copied to clipboard! Share it with someone to invite them to chat.');
+                    }).catch(() => {
+                      alert(`Room ID: ${currentRoomId}\n\nShare this ID with someone so they can join your room.`);
+                    });
+                  }}
+                  style={{
+                    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px 20px',
+                    borderRadius: '8px',
+                    fontSize: '14px',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                  }}
+                >
+                  📤 Share Room Link
+                </button>
+              </div>
+            )}
+            {role === 'user1' && user2OnlineName && (
+              <div>
+                <div style={{ fontSize: '24px', marginBottom: '10px' }}>✅</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>User 2 is online!</div>
+                <div style={{ fontSize: '14px' }}>You can now start chatting!</div>
+              </div>
+            )}
+            {role === 'user2' && (
+              <div>
+                <div style={{ fontSize: '24px', marginBottom: '10px' }}>✅</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>Connected with User 1!</div>
+                <div style={{ fontSize: '14px' }}>You can now start chatting!</div>
+              </div>
+            )}
+            {role === 'spectator' && (
+              <div>
+                <div style={{ fontSize: '24px', marginBottom: '10px' }}>👁️</div>
+                <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>Spectator mode</div>
+                <div style={{ fontSize: '14px' }}>Read-only view - you can see messages but not send them</div>
+              </div>
+            )}
           </div>
-
-          <p style={{ marginTop: '20px', fontSize: '14px', color: '#666' }}>
-            Setting up your chat session... You'll be able to start chatting once your role is assigned.
-          </p>
         </div>
       </div>
     );
