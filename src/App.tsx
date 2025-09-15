@@ -1,13 +1,15 @@
 import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 import { translationService } from './services/translationService';
-import { supabase, getChannelName, ChatEvent, getOrCreateClientId } from './services/realtime';
+import { getOrCreateClientId } from './services/realtime';
+import { sharedChatService } from './services/sharedChat';
 
 interface Message {
   id: string;
   text: string;
   translatedText?: string;
   sender: 'user1' | 'user2';
+  senderName: string;
   timestamp: Date;
   showOriginal?: boolean;
 }
@@ -32,7 +34,6 @@ function App() {
   const [, setIsTranslating] = useState(false);
   const [typingUser, setTypingUser] = useState<'user1' | 'user2' | null>(null);
   const [role, setRole] = useState<'user1' | 'user2' | 'spectator' | ''>('');
-  const [roomId] = useState<string>('global');
   
   const [displayName, setDisplayName] = useState<string>(() => {
     const clientId = getOrCreateClientId();
@@ -52,128 +53,71 @@ function App() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-  // Initialize presence tracking immediately
+  // Initialize shared chat service
   useEffect(() => {
-    if (!supabase || !roomId) {
-      console.log('Supabase or roomId missing:', { supabase: !!supabase, roomId });
-      // Fallback: assign role based on clientId for offline mode
-      const clientId = getOrCreateClientId();
-      // Use sessionStorage for role - each new tab gets a fresh role
-      const storedRole = sessionStorage.getItem(`role_${clientId}`);
-      if (storedRole) {
-        setRole(storedRole as 'user1' | 'user2' | 'spectator');
-      } else {
-        // First time - assign based on timestamp
-        const isFirstUser = Date.now() % 2 === 0;
-        const role = isFirstUser ? 'user1' : 'user2';
-        setRole(role);
-        sessionStorage.setItem(`role_${clientId}`, role);
-      }
-      setTotalUsers(1);
-      setPresenceDebug(`Offline mode: ${storedRole || 'new user'} (clientId: ${clientId})`);
-      return;
-    }
     const clientId = getOrCreateClientId();
-    console.log('Initializing presence with clientId:', clientId);
-    const channel = supabase.channel(getChannelName(roomId), { config: { broadcast: { ack: true }, presence: { key: clientId } } });
-
-    channel.on('broadcast', { event: 'chat' }, ({ payload }: { payload: ChatEvent }) => {
-      if (payload.type === 'message') {
-        const msg: Message = {
-          id: payload.id,
-          text: payload.text,
-          sender: payload.sender,
-          timestamp: new Date(payload.timestamp),
-          showOriginal: false,
-        };
-        setMessages(prev => {
-          if (prev.some(m => m.id === msg.id)) return prev;
-          return [...prev, msg];
-        });
-      } else if (payload.type === 'typing') {
-        setTypingUser(payload.isTyping ? payload.sender : null);
-      }
-    });
     
-    channel.on('presence', { event: 'sync' }, () => {
-      const state = channel.presenceState();
-      // Presence state shape: { [clientId]: [ { name, ts, ... }, ... ] }
-      const entries = Object.entries(state) as Array<[string, any[]]>;
+    // Assign role based on existing presence or create new one
+    const presence = sharedChatService.getPresence();
+    const existingUser = presence.find(p => p.clientId === clientId);
+    
+    if (existingUser) {
+      setRole(existingUser.role);
+    } else {
+      // New user - assign role based on existing users
+      const user1Count = presence.filter(p => p.role === 'user1').length;
+      const user2Count = presence.filter(p => p.role === 'user2').length;
       
-      // Debug information
-      const debugInfo = `Total users: ${entries.length}, Entries: ${JSON.stringify(entries.map(([key, metas]) => ({ key, meta: metas?.[0] || {} })), null, 2)}`;
-      setPresenceDebug(debugInfo);
-      setTotalUsers(entries.length);
-      
-      // Order by first seen (existing order of keys is acceptable for simple rooms)
-      const ordered = entries
-        .map(([key, metas]) => ({ key, meta: metas?.[0] || {} }))
-        .sort((a, b) => (a.meta.ts || 0) - (b.meta.ts || 0));
-      
-      const myIndex = ordered.findIndex(e => e.key === clientId);
-      console.log('Presence sync:', { clientId, myIndex, ordered, state });
-      
-      if (myIndex === 0) setRole('user1');
-      else if (myIndex === 1) setRole('user2');
-      else setRole('spectator');
-
-      const first = ordered[0]?.meta || {};
-      const second = ordered[1]?.meta || {};
-      setUser1OnlineName(first.name ? String(first.name) : null);
-      setUser2OnlineName(second.name ? String(second.name) : null);
-    });
-
-    channel.subscribe(async (status, err) => {
-      console.log('Channel subscription status:', status, err);
-      if (status === 'SUBSCRIBED') {
-        console.log('Tracking presence with:', { clientId, name: displayName || 'Anonymous' });
-        await channel.track({ clientId, name: displayName || 'Anonymous', ts: Date.now() });
-      } else if (status === 'CHANNEL_ERROR') {
-        console.error('Channel error:', err);
-        // Fallback: assign role based on clientId for offline mode
-        const storedRole = sessionStorage.getItem(`role_${clientId}`);
-        if (storedRole) {
-          setRole(storedRole as 'user1' | 'user2' | 'spectator');
-        } else {
-          const isFirstUser = Date.now() % 2 === 0;
-          const role = isFirstUser ? 'user1' : 'user2';
-          setRole(role);
-          sessionStorage.setItem(`role_${clientId}`, role);
-        }
-        setTotalUsers(1);
-        setPresenceDebug(`Fallback mode: ${storedRole || 'new user'} (clientId: ${clientId})`);
-      } else if (status === 'TIMED_OUT') {
-        console.error('Channel timed out');
-        // Fallback: assign role based on clientId for offline mode
-        const storedRole = sessionStorage.getItem(`role_${clientId}`);
-        if (storedRole) {
-          setRole(storedRole as 'user1' | 'user2' | 'spectator');
-        } else {
-          const isFirstUser = Date.now() % 2 === 0;
-          const role = isFirstUser ? 'user1' : 'user2';
-          setRole(role);
-          sessionStorage.setItem(`role_${clientId}`, role);
-        }
-        setTotalUsers(1);
-        setPresenceDebug(`Fallback mode: ${storedRole || 'new user'} (clientId: ${clientId})`);
+      let newRole: 'user1' | 'user2' | 'spectator';
+      if (user1Count === 0) {
+        newRole = 'user1';
+      } else if (user2Count === 0) {
+        newRole = 'user2';
+      } else {
+        newRole = 'spectator';
       }
+      
+      setRole(newRole);
+      // Update presence when we have a display name
+      if (displayName) {
+        sharedChatService.updatePresence(clientId, displayName, newRole);
+      }
+    }
+
+    // Subscribe to messages
+    const unsubscribeMessages = sharedChatService.subscribeToMessages((sharedMessages) => {
+      const convertedMessages: Message[] = sharedMessages.map(msg => ({
+        ...msg,
+        timestamp: new Date(msg.timestamp)
+      }));
+      setMessages(convertedMessages);
     });
-    return () => { channel.unsubscribe(); };
-  }, [roomId]);
+
+    // Subscribe to presence
+    const unsubscribePresence = sharedChatService.subscribeToPresence((presence) => {
+      setTotalUsers(presence.length);
+      
+      const user1 = presence.find(p => p.role === 'user1');
+      const user2 = presence.find(p => p.role === 'user2');
+      
+      setUser1OnlineName(user1?.name || null);
+      setUser2OnlineName(user2?.name || null);
+      
+      setPresenceDebug(`Shared mode: ${presence.length} users online`);
+    });
+
+    return () => {
+      unsubscribeMessages();
+      unsubscribePresence();
+    };
+  }, [displayName]);
 
   // Update presence when displayName changes
   useEffect(() => {
-    if (!supabase || !roomId || !displayName) return;
+    if (!displayName) return;
     const clientId = getOrCreateClientId();
-    const channel = supabase.channel(getChannelName(roomId));
-    
-    channel.subscribe(async (status) => {
-      if (status === 'SUBSCRIBED') {
-        await channel.track({ clientId, name: displayName, ts: Date.now() });
-      }
-    });
-    return () => { channel.unsubscribe(); };
-  }, [displayName, roomId]);
+    sharedChatService.updatePresence(clientId, displayName, role as 'user1' | 'user2' | 'spectator');
+  }, [displayName, role]);
 
   // OpenAI key entry removed; service will use env var if set
 
@@ -195,46 +139,30 @@ function App() {
   const sendMessage = async () => {
     if (!newMessage.trim() || !user1Language || !user2Language) return;
 
-    const messageId = Date.now().toString();
-    const message: Message = {
-      id: messageId,
-      text: newMessage,
-      sender: currentSender,
-      timestamp: new Date(),
-      showOriginal: false
-    };
-
-    // Immediately render the sender's message
-    setMessages(prev => [...prev, message]);
+    const messageText = newMessage;
     setNewMessage('');
 
-    // Broadcast message over realtime
-    if (supabase && roomId) {
-      const evt: ChatEvent = { type: 'message', id: messageId, text: message.text, sender: currentSender, timestamp: message.timestamp.toISOString() };
-      supabase.channel(getChannelName(roomId)).send({ type: 'broadcast', event: 'chat', payload: evt });
-    }
+    // Add message to shared chat
+    const messageId = sharedChatService.addMessage({
+      text: messageText,
+      sender: currentSender,
+      senderName: displayName || 'Anonymous',
+      showOriginal: false
+    });
 
-    // If languages differ, translate asynchronously and update the received copy
+    // If languages differ, translate asynchronously and update the message
     if (user1Language !== user2Language) {
       const targetLanguage = currentSender === 'user1' ? user2Language : user1Language;
       const sourceLanguage = currentSender === 'user1' ? user1Language : user2Language;
 
       const receivingUser = currentSender === 'user1' ? 'user2' : 'user1';
       setTypingUser(receivingUser);
-      if (supabase && roomId) {
-        const typingOn: ChatEvent = { type: 'typing', sender: currentSender, isTyping: true };
-        supabase.channel(getChannelName(roomId)).send({ type: 'broadcast', event: 'chat', payload: typingOn });
-      }
 
       try {
-        const translated = await translateText(message.text, sourceLanguage, targetLanguage);
-        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, translatedText: translated } : m));
+        const translated = await translateText(messageText, sourceLanguage, targetLanguage);
+        sharedChatService.updateMessage(messageId, { translatedText: translated });
       } finally {
         setTypingUser(null);
-        if (supabase && roomId) {
-          const typingOff: ChatEvent = { type: 'typing', sender: currentSender, isTyping: false };
-          supabase.channel(getChannelName(roomId)).send({ type: 'broadcast', event: 'chat', payload: typingOff });
-        }
       }
     }
   };
@@ -254,7 +182,7 @@ function App() {
   };
 
   const goBackToLanguageSelection = () => {
-    setMessages([]);
+    sharedChatService.clearChat();
     setNewMessage('');
     setCurrentSender('user1');
     setUser1Language('');
