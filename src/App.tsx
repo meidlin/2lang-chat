@@ -448,47 +448,6 @@ function AppContent() {
     setShowRoomSelection(true);
   };
 
-  const refreshApp = async () => {
-    try {
-      if ('serviceWorker' in navigator) {
-        const regs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(regs.map(r => r.unregister()));
-      }
-      if ('caches' in window) {
-        const keys = await caches.keys();
-        await Promise.all(keys.map(k => caches.delete(k)));
-      }
-    } finally {
-      window.location.reload();
-    }
-  };
-
-  const deleteRoom = async () => {
-    if (!currentRoomId) {
-      alert('No room to delete');
-      return;
-    }
-
-    const confirmDelete = window.confirm(
-      'Are you sure you want to delete this room? This will permanently remove all messages and kick out all users. This action cannot be undone.'
-    );
-
-    if (!confirmDelete) {
-      return;
-    }
-
-    try {
-      console.log('🗑️ Deleting room:', currentRoomId);
-      await supabaseChatService.deleteRoom(currentRoomId);
-      console.log('✅ Room deleted successfully');
-      
-      // Go back to room selection
-      goBackToRoomSelection();
-    } catch (error) {
-      console.error('❌ Error deleting room:', error);
-      alert('Failed to delete room. Please try again.');
-    }
-  };
 
   // Invite link removed
 
@@ -698,38 +657,6 @@ function AppContent() {
         <div className="chat-header">
           <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
             <button className="back-btn" onClick={goBackToRoomSelection} aria-label="Back to room selection">← Back</button>
-            <button
-              onClick={async () => {
-                if (!currentRoomId) return void alert("No room to delete");
-                if (window.confirm("Are you sure you want to delete this room? This will permanently remove all messages and kick out all users. This action cannot be undone."))
-                  try {
-                    console.log('🗑️ Deleting room:', currentRoomId);
-                    await supabaseChatService.deleteRoom(currentRoomId);
-                    console.log('✅ Room deleted successfully');
-                    goBackToRoomSelection();
-                  } catch (error) {
-                    console.error('❌ Error deleting room:', error);
-                    alert('Failed to delete room. Please try again.');
-                  }
-              }}
-              aria-label="Delete room"
-              style={{
-                background: '#dc3545',
-                color: 'white',
-                border: 'none',
-                padding: '8px 12px',
-                borderRadius: '6px',
-                fontSize: '14px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                transition: 'background 0.3s ease'
-              }}
-              onMouseOver={(e) => (e.target as HTMLButtonElement).style.background = '#c82333'}
-              onMouseOut={(e) => (e.target as HTMLButtonElement).style.background = '#dc3545'}
-            >
-              🗑️ Delete Room
-            </button>
           </div>
           <div className="language-display">
             <span className="user1-lang">
@@ -865,26 +792,6 @@ function AppContent() {
       <div className="chat-header">
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           <button className="back-btn" onClick={goBackToRoomSelection} aria-label="Back to room selection">← Back</button>
-          <button 
-            onClick={deleteRoom}
-            aria-label="Delete room"
-            style={{
-              background: '#dc3545',
-              color: 'white',
-              border: 'none',
-              padding: '8px 12px',
-              borderRadius: '6px',
-              fontSize: '14px',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-              transition: 'background 0.3s ease'
-            }}
-            onMouseOver={(e) => (e.target as HTMLButtonElement).style.background = '#c82333'}
-            onMouseOut={(e) => (e.target as HTMLButtonElement).style.background = '#dc3545'}
-          >
-            🗑️ Delete Room
-          </button>
         </div>
         <div className="language-display">
           <span className="user1-lang">
@@ -900,36 +807,6 @@ function AppContent() {
             {connectionStatus === 'connected' && '🟢'}
             {connectionStatus === 'disconnected' && '🔴'}
           </span>
-        </div>
-        <div className="header-actions">
-          <button className="refresh-btn" onClick={refreshApp} aria-label="Refresh app">Refresh</button>
-          <button className="clear-users-btn" onClick={async () => {
-            try {
-              // Clear all presence and messages
-              await supabaseChatService.clearAllPresence();
-              await supabaseChatService.clearChat();
-              
-              // Reset all state
-              setMessages([]);
-              setUser1OnlineName(null);
-              setUser2OnlineName(null);
-              setUser1Language('');
-              setUser2Language('');
-              setTypingIndicator(null);
-              
-              // Reset current user state to force re-onboarding
-              setDisplayName('');
-              setPendingName('');
-              setMyLanguage('');
-              setRole('');
-              setCurrentSender('user1');
-              
-              alert('All users and messages cleared! You can start fresh.');
-            } catch (error) {
-              console.error('Error clearing users and messages:', error);
-              alert('Failed to clear. Check console for details.');
-            }
-          }} aria-label="Clear all users and messages">Clear All</button>
         </div>
       </div>
 
