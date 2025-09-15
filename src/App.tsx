@@ -699,6 +699,119 @@ function AppContent() {
   
   console.log('✅ RENDERING CHAT INTERFACE - myLanguage:', myLanguage, 'role:', role);
   
+  // Show waiting state for user1 when no user2 is online
+  if (role === 'user1' && !user2OnlineName) {
+    return (
+      <div className="app">
+        <div className="chat-header">
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            <button className="back-btn" onClick={goBackToRoomSelection} aria-label="Back to room selection">← Back</button>
+            <button
+              onClick={async () => {
+                if (!currentRoomId) return void alert("No room to delete");
+                if (window.confirm("Are you sure you want to delete this room? This will permanently remove all messages and kick out all users. This action cannot be undone."))
+                  try {
+                    console.log('🗑️ Deleting room:', currentRoomId);
+                    await supabaseChatService.deleteRoom(currentRoomId);
+                    console.log('✅ Room deleted successfully');
+                    goBackToRoomSelection();
+                  } catch (error) {
+                    console.error('❌ Error deleting room:', error);
+                    alert('Failed to delete room. Please try again.');
+                  }
+              }}
+              aria-label="Delete room"
+              style={{
+                background: '#dc3545',
+                color: 'white',
+                border: 'none',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                transition: 'background 0.3s ease'
+              }}
+              onMouseOver={(e) => (e.target as HTMLButtonElement).style.background = '#c82333'}
+              onMouseOut={(e) => (e.target as HTMLButtonElement).style.background = '#dc3545'}
+            >
+              🗑️ Delete Room
+            </button>
+          </div>
+          <div className="language-display">
+            <span className="user1-lang">
+              {LANGUAGES.find(l => l.code === user1Language)?.flag} {user1OnlineName || "User 1"}
+            </span>
+            <span className="separator">↔️</span>
+            <span className="user2-lang">
+              {LANGUAGES.find(l => l.code === user2Language)?.flag} {user2OnlineName || "User 2"}
+            </span>
+            <span className="user-count">({totalUsers} online)</span>
+            <span className={`connection-status ${connectionStatus}`}>
+              {connectionStatus === 'connecting' && '🔄'}
+              {connectionStatus === 'connected' && '🟢'}
+              {connectionStatus === 'disconnected' && '🔴'}
+            </span>
+          </div>
+        </div>
+
+        {/* WAITING STATE - PROMINENT AND CLEAR */}
+        <div style={{
+          textAlign: 'center',
+          margin: '40px 20px',
+          padding: '40px 20px',
+          background: 'linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%)',
+          border: '3px solid #f39c12',
+          borderRadius: '20px',
+          color: '#856404',
+          boxShadow: '0 8px 32px rgba(243, 156, 18, 0.3)'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '20px' }}>⏳</div>
+          <div style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '15px' }}>Waiting for User 2 to join…</div>
+          <div style={{ fontSize: '18px', marginBottom: '30px', opacity: 0.8 }}>Share this room with someone to start chatting!</div>
+          
+          <button
+            onClick={() => {
+              const roomUrl = `${window.location.origin}${window.location.pathname}?room=${currentRoomId}`;
+              navigator.clipboard.writeText(roomUrl).then(() => {
+                alert('Room link copied to clipboard! Share it with someone to invite them to chat.');
+              }).catch(() => {
+                alert(`Room ID: ${currentRoomId}\n\nShare this ID with someone so they can join your room.`);
+              });
+            }}
+            style={{
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              border: 'none',
+              padding: '15px 30px',
+              borderRadius: '12px',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
+              boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+              transition: 'all 0.3s ease'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.transform = 'translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.6)';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.4)';
+            }}
+          >
+            📤 Share Room Link
+          </button>
+          
+          <div style={{ marginTop: '20px', fontSize: '14px', opacity: 0.7 }}>
+            Room ID: <code style={{ background: 'rgba(0,0,0,0.1)', padding: '2px 6px', borderRadius: '4px' }}>{currentRoomId}</code>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
   if (!myLanguage || !role) {
     console.log('🚫 RENDERING LANGUAGE SELECTION SCREEN');
     return (
