@@ -157,15 +157,17 @@ class SupabaseChatService {
 
     try {
       console.log('📝 Updating presence:', { clientId, name, role, language });
+      const upsertData = {
+        client_id: clientId,
+        name,
+        role,
+        language,
+        last_seen: new Date().toISOString(),
+      };
+      console.log('📦 Upsert data:', upsertData);
       const { error } = await supabase
         .from('presence')
-        .upsert({
-          client_id: clientId,
-          name,
-          role,
-          language,
-          last_seen: new Date().toISOString(),
-        }, {
+        .upsert(upsertData, {
           onConflict: 'client_id'
         });
 
@@ -217,12 +219,16 @@ class SupabaseChatService {
 
       if (error) throw error;
 
-      return data.map(p => ({
+      console.log('📊 Raw presence data from DB:', data);
+      const mappedData = data.map(p => ({
         clientId: p.client_id,
         name: p.name,
         role: p.role,
+        language: p.language,
         lastSeen: new Date(p.last_seen).getTime(),
       }));
+      console.log('📊 Mapped presence data:', mappedData);
+      return mappedData;
     } catch (error) {
       console.error('Error fetching presence:', error);
       return [];
