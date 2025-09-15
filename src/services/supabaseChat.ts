@@ -29,10 +29,10 @@ class SupabaseChatService {
   }
 
   private startPresenceCleanup() {
-    // Clean up old presence records every 2 minutes
+    // Clean up old presence records every 30 seconds (more aggressive)
     this.presenceCleanupInterval = setInterval(() => {
       this.cleanupOldPresence();
-    }, 120000);
+    }, 30000);
   }
 
   async cleanupOldPresence() {
@@ -43,7 +43,7 @@ class SupabaseChatService {
       const { error } = await supabase
         .from('presence')
         .delete()
-        .lt('last_seen', new Date(Date.now() - 5 * 60 * 1000).toISOString());
+        .lt('last_seen', new Date(Date.now() - 1 * 60 * 1000).toISOString());
       
       if (error) {
         console.error('❌ Error cleaning up old presence:', error);
@@ -306,6 +306,30 @@ class SupabaseChatService {
       if (error) throw error;
     } catch (error) {
       console.error('Error clearing chat:', error);
+    }
+  }
+
+  async clearAllPresence() {
+    if (!supabase) {
+      throw new Error('Supabase not available - cannot clear presence');
+    }
+
+    try {
+      console.log('🧹 Manually clearing all presence records...');
+      const { error } = await supabase
+        .from('presence')
+        .delete()
+        .neq('client_id', '00000000-0000-0000-0000-000000000000'); // Delete all presence
+
+      if (error) {
+        console.error('❌ Error clearing presence:', error);
+        throw error;
+      }
+
+      console.log('✅ All presence records cleared successfully');
+    } catch (error) {
+      console.error('💥 Error clearing presence:', error);
+      throw error;
     }
   }
 

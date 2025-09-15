@@ -462,6 +462,15 @@ function AppContent() {
         </div>
         <div className="header-actions">
           <button className="refresh-btn" onClick={refreshApp} aria-label="Refresh app">Refresh</button>
+          <button className="clear-users-btn" onClick={async () => {
+            try {
+              await supabaseChatService.clearAllPresence();
+              alert('All users cleared! Refresh the page to see the changes.');
+            } catch (error) {
+              console.error('Error clearing users:', error);
+              alert('Failed to clear users. Check console for details.');
+            }
+          }} aria-label="Clear all users">Clear All Users</button>
           <button className="switch-user-btn" onClick={switchSender}>
             Switch to {currentSender === 'user1' ? 'User 2' : 'User 1'}
           </button>
